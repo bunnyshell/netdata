@@ -269,7 +269,8 @@ CHARTS = {
         'options': [None, 'Tables Locks', 'locks/s', 'locks', 'mysql.table_locks', 'line'],
         'lines': [
             ['Table_locks_immediate', 'immediate', 'incremental'],
-            ['Table_locks_waited', 'waited', 'incremental', -1, 1]
+            ['Table_locks_waited', 'waited', 'incremental', -1, 1],
+            ['Table_locks_ratio', 'ratio', 'incremental']
         ]
     },
     'join_issues': {
@@ -310,7 +311,8 @@ CHARTS = {
         'lines': [
             ['Threads_connected', 'active', 'absolute'],
             ['max_connections', 'limit', 'absolute'],
-            ['Max_used_connections', 'max_active', 'absolute']
+            ['Max_used_connections', 'max_active', 'absolute'],
+            ['Connections_ratio', 'active_limit_ratio', 'absolute']
         ]
     },
     'binlog_cache': {
@@ -685,6 +687,12 @@ class Service(MySQLService):
 
         data = dict()
 
+        if 'variables' in raw_data:
+            variables = dict(raw_data['variables'][0])
+            for key in VARIABLES:
+                if key in variables:
+                    data[key] = variables[key]
+
         if 'global_status' in raw_data:
             global_status = dict(raw_data['global_status'][0])
             for key in GLOBAL_STATS:
@@ -692,6 +700,10 @@ class Service(MySQLService):
                     data[key] = global_status[key]
             if 'Threads_created' in data and 'Connections' in data:
                 data['Thread_cache_misses'] = round(int(data['Threads_created']) / float(data['Connections']) * 10000)
+            if 'Table_locks_immediate' in data and 'Table_locks_waited' in data:
+                data['Table_locks_ratio'] = int((int(data['Table_locks_waited']) * 100) / (int(data['Table_locks_waited']) + int(data['Table_locks_immediate'])))
+            if 'Threads_connected' in data and 'max_connections' in data:
+                data['Connections_ratio'] = int((int(data['Threads_connected']) * 100) / int(data['max_connections']))
 
         if 'slave_status' in raw_data:
             status = self.get_slave_status(raw_data['slave_status'])
@@ -703,12 +715,6 @@ class Service(MySQLService):
                 data.update(self.get_userstats(raw_data))
             else:
                 self.queries.pop('user_statistics')
-
-        if 'variables' in raw_data:
-            variables = dict(raw_data['variables'][0])
-            for key in VARIABLES:
-                if key in variables:
-                    data[key] = variables[key]
 
         return data or None
 
