@@ -148,11 +148,12 @@ int do_proc_meminfo(int update_every, usec_t dt) {
     // http://stackoverflow.com/questions/3019748/how-to-reliably-measure-available-memory-in-linux
     unsigned long long MemCached = Cached + SReclaimable;
     unsigned long long MemUsed = MemTotal - MemFree - MemCached - Buffers;
+    unsigned long long MemUsedRatio = MemUsed * 100 / (MemTotal - Buffers);
 
     if(do_ram) {
         {
             static RRDSET *st_system_ram = NULL;
-            static RRDDIM *rd_free = NULL, *rd_used = NULL, *rd_cached = NULL, *rd_buffers = NULL;
+            static RRDDIM *rd_free = NULL, *rd_used = NULL, *rd_cached = NULL, *rd_buffers = NULL, *rd_used_ratio = NULL;
 
             if(unlikely(!st_system_ram)) {
                 st_system_ram = rrdset_create_localhost(
@@ -174,6 +175,7 @@ int do_proc_meminfo(int update_every, usec_t dt) {
                 rd_used    = rrddim_add(st_system_ram, "used",    NULL, 1, 1024, RRD_ALGORITHM_ABSOLUTE);
                 rd_cached  = rrddim_add(st_system_ram, "cached",  NULL, 1, 1024, RRD_ALGORITHM_ABSOLUTE);
                 rd_buffers = rrddim_add(st_system_ram, "buffers", NULL, 1, 1024, RRD_ALGORITHM_ABSOLUTE);
+                rd_used_ratio = rrddim_add(st_system_ram, "used_ratio", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
             }
             else rrdset_next(st_system_ram);
 
@@ -181,6 +183,7 @@ int do_proc_meminfo(int update_every, usec_t dt) {
             rrddim_set_by_pointer(st_system_ram, rd_used,    MemUsed);
             rrddim_set_by_pointer(st_system_ram, rd_cached,  MemCached);
             rrddim_set_by_pointer(st_system_ram, rd_buffers, Buffers);
+            rrddim_set_by_pointer(st_system_ram, rd_used_ratio, MemUsedRatio);
 
             rrdset_done(st_system_ram);
         }

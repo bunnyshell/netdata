@@ -41,11 +41,13 @@ struct mount_point_metadata {
     RRDDIM *rd_space_used;
     RRDDIM *rd_space_avail;
     RRDDIM *rd_space_reserved;
+    RRDDIM *rd_space_used_ratio;
 
     RRDSET *st_inodes;
     RRDDIM *rd_inodes_used;
     RRDDIM *rd_inodes_avail;
     RRDDIM *rd_inodes_reserved;
+    RRDDIM *rd_inodes_used_ratio;
 };
 
 static DICTIONARY *dict_mountpoints = NULL;
@@ -274,16 +276,20 @@ static inline void do_disk_space_stats(struct mountinfo *mi, int update_every) {
                 );
             }
 
-            m->rd_space_avail    = rrddim_add(m->st_space, "avail", NULL, (collected_number)bsize, 1024 * 1024 * 1024, RRD_ALGORITHM_ABSOLUTE);
-            m->rd_space_used     = rrddim_add(m->st_space, "used", NULL, (collected_number)bsize, 1024 * 1024 * 1024, RRD_ALGORITHM_ABSOLUTE);
-            m->rd_space_reserved = rrddim_add(m->st_space, "reserved_for_root", "reserved for root", (collected_number)bsize, 1024 * 1024 * 1024, RRD_ALGORITHM_ABSOLUTE);
+            m->rd_space_avail      = rrddim_add(m->st_space, "avail", NULL, (collected_number)bsize, 1024 * 1024 * 1024, RRD_ALGORITHM_ABSOLUTE);
+            m->rd_space_used       = rrddim_add(m->st_space, "used", NULL, (collected_number)bsize, 1024 * 1024 * 1024, RRD_ALGORITHM_ABSOLUTE);
+            m->rd_space_reserved   = rrddim_add(m->st_space, "reserved_for_root", "reserved for root", (collected_number)bsize, 1024 * 1024 * 1024, RRD_ALGORITHM_ABSOLUTE);
+            m->rd_space_used_ratio = rrddim_add(m->st_space, "used_ratio", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
         }
         else
             rrdset_next(m->st_space);
 
-        rrddim_set_by_pointer(m->st_space, m->rd_space_avail,    (collected_number)bavail);
-        rrddim_set_by_pointer(m->st_space, m->rd_space_used,     (collected_number)bused);
-        rrddim_set_by_pointer(m->st_space, m->rd_space_reserved, (collected_number)breserved_root);
+        collected_number used_ratio = (collected_number)bused * 100/((collected_number)bavail + (collected_number)bused);
+
+        rrddim_set_by_pointer(m->st_space, m->rd_space_avail,      (collected_number)bavail);
+        rrddim_set_by_pointer(m->st_space, m->rd_space_used,       (collected_number)bused);
+        rrddim_set_by_pointer(m->st_space, m->rd_space_reserved,   (collected_number)breserved_root);
+        rrddim_set_by_pointer(m->st_space, m->rd_space_used_ratio, used_ratio);
         rrdset_done(m->st_space);
 
         rendered++;
@@ -316,16 +322,20 @@ static inline void do_disk_space_stats(struct mountinfo *mi, int update_every) {
                 );
             }
 
-            m->rd_inodes_avail    = rrddim_add(m->st_inodes, "avail", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
-            m->rd_inodes_used     = rrddim_add(m->st_inodes, "used", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
-            m->rd_inodes_reserved = rrddim_add(m->st_inodes, "reserved_for_root", "reserved for root", 1, 1, RRD_ALGORITHM_ABSOLUTE);
+            m->rd_inodes_avail      = rrddim_add(m->st_inodes, "avail", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+            m->rd_inodes_used       = rrddim_add(m->st_inodes, "used", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
+            m->rd_inodes_reserved   = rrddim_add(m->st_inodes, "reserved_for_root", "reserved for root", 1, 1, RRD_ALGORITHM_ABSOLUTE);
+            m->rd_inodes_used_ratio = rrddim_add(m->st_inodes, "used_ratio", NULL, 1, 1, RRD_ALGORITHM_ABSOLUTE);
         }
         else
             rrdset_next(m->st_inodes);
 
-        rrddim_set_by_pointer(m->st_inodes, m->rd_inodes_avail,    (collected_number)favail);
-        rrddim_set_by_pointer(m->st_inodes, m->rd_inodes_used,     (collected_number)fused);
-        rrddim_set_by_pointer(m->st_inodes, m->rd_inodes_reserved, (collected_number)freserved_root);
+        collected_number used_ratio = (collected_number)fused * 100/((collected_number)favail + (collected_number)fused);
+
+        rrddim_set_by_pointer(m->st_inodes, m->rd_inodes_avail,      (collected_number)favail);
+        rrddim_set_by_pointer(m->st_inodes, m->rd_inodes_used,       (collected_number)fused);
+        rrddim_set_by_pointer(m->st_inodes, m->rd_inodes_reserved,   (collected_number)freserved_root);
+        rrddim_set_by_pointer(m->st_inodes, m->rd_inodes_used_ratio, used_ratio);
         rrdset_done(m->st_inodes);
 
         rendered++;

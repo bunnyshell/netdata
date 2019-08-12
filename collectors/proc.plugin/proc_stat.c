@@ -45,6 +45,7 @@ struct cpu_chart {
     RRDDIM *rd_steal;
     RRDDIM *rd_guest;
     RRDDIM *rd_guest_nice;
+    RRDDIM *rd_used;
 
     struct per_core_single_number_file files[PER_CORE_FILES];
 
@@ -594,7 +595,7 @@ int do_proc_stat(int update_every, usec_t dt) {
 
             if(likely((core == 0 && do_cpu) || (core > 0 && do_cpu_cores))) {
                 char *id;
-                unsigned long long user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0, steal = 0, guest = 0, guest_nice = 0;
+                unsigned long long user = 0, nice = 0, system = 0, idle = 0, iowait = 0, irq = 0, softirq = 0, steal = 0, guest = 0, guest_nice = 0, used = 0;
 
                 id          = row_key;
                 user        = str2ull(procfile_lineword(ff, l, 1));
@@ -611,6 +612,7 @@ int do_proc_stat(int update_every, usec_t dt) {
 
                 guest_nice  = str2ull(procfile_lineword(ff, l, 10));
                 nice -= guest_nice;
+                used = user + system + softirq + irq + guest;
 
                 char *title, *type, *context, *family;
                 long priority;
@@ -710,6 +712,7 @@ int do_proc_stat(int update_every, usec_t dt) {
                     cpu_chart->rd_nice       = rrddim_add(cpu_chart->st, "nice",       NULL, multiplier, divisor, RRD_ALGORITHM_PCENT_OVER_DIFF_TOTAL);
                     cpu_chart->rd_iowait     = rrddim_add(cpu_chart->st, "iowait",     NULL, multiplier, divisor, RRD_ALGORITHM_PCENT_OVER_DIFF_TOTAL);
                     cpu_chart->rd_idle       = rrddim_add(cpu_chart->st, "idle",       NULL, multiplier, divisor, RRD_ALGORITHM_PCENT_OVER_DIFF_TOTAL);
+                    cpu_chart->rd_used       = rrddim_add(cpu_chart->st, "used",       NULL, multiplier, divisor, RRD_ALGORITHM_PCENT_OVER_DIFF_TOTAL);
                     rrddim_hide(cpu_chart->st, "idle");
 
                     if(unlikely(core == 0 && cpus_var == NULL))
@@ -727,6 +730,7 @@ int do_proc_stat(int update_every, usec_t dt) {
                 rrddim_set_by_pointer(cpu_chart->st, cpu_chart->rd_steal, steal);
                 rrddim_set_by_pointer(cpu_chart->st, cpu_chart->rd_guest, guest);
                 rrddim_set_by_pointer(cpu_chart->st, cpu_chart->rd_guest_nice, guest_nice);
+                rrddim_set_by_pointer(cpu_chart->st, cpu_chart->rd_used, used);
                 rrdset_done(cpu_chart->st);
             }
         }

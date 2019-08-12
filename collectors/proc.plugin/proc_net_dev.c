@@ -936,7 +936,7 @@ int do_proc_net_dev(int update_every, usec_t dt) {
                                                netdata_zero_metrics_enabled == CONFIG_BOOLEAN_YES))) {
         do_bandwidth = CONFIG_BOOLEAN_YES;
         static RRDSET *st_system_net = NULL;
-        static RRDDIM *rd_in = NULL, *rd_out = NULL;
+        static RRDDIM *rd_in = NULL, *rd_out = NULL, *rd_all = NULL;
 
         if(unlikely(!st_system_net)) {
             st_system_net = rrdset_create_localhost(
@@ -956,12 +956,14 @@ int do_proc_net_dev(int update_every, usec_t dt) {
 
             rd_in  = rrddim_add(st_system_net, "InOctets",  "received", 8, BITS_IN_A_KILOBIT, RRD_ALGORITHM_INCREMENTAL);
             rd_out = rrddim_add(st_system_net, "OutOctets", "sent",    -8, BITS_IN_A_KILOBIT, RRD_ALGORITHM_INCREMENTAL);
+            rd_all = rrddim_add(st_system_net, "AllOctets", "all",      8, BITS_IN_A_KILOBIT, RRD_ALGORITHM_INCREMENTAL);
         }
         else
             rrdset_next(st_system_net);
 
         rrddim_set_by_pointer(st_system_net, rd_in,  (collected_number)system_rbytes);
         rrddim_set_by_pointer(st_system_net, rd_out, (collected_number)system_tbytes);
+        rrddim_set_by_pointer(st_system_net, rd_all, (collected_number)system_tbytes + (collected_number)system_rbytes);
 
         rrdset_done(st_system_net);
     }

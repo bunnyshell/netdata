@@ -62,10 +62,12 @@ static struct disk {
     RRDSET *st_io;
     RRDDIM *rd_io_reads;
     RRDDIM *rd_io_writes;
+    RRDDIM *rd_io_all;
 
     RRDSET *st_ops;
     RRDDIM *rd_ops_reads;
     RRDDIM *rd_ops_writes;
+    RRDDIM *rd_ops_all;
 
     RRDSET *st_qops;
     RRDDIM *rd_qops_operations;
@@ -996,11 +998,13 @@ int do_proc_diskstats(int update_every, usec_t dt) {
 
                 d->rd_io_reads  = rrddim_add(d->st_io, "reads",  NULL, d->sector_size, 1024,      RRD_ALGORITHM_INCREMENTAL);
                 d->rd_io_writes = rrddim_add(d->st_io, "writes", NULL, d->sector_size * -1, 1024, RRD_ALGORITHM_INCREMENTAL);
+                d->rd_io_all    = rrddim_add(d->st_io, "all",    NULL, d->sector_size, 1024,      RRD_ALGORITHM_INCREMENTAL);
             }
             else rrdset_next(d->st_io);
 
             last_readsectors  = rrddim_set_by_pointer(d->st_io, d->rd_io_reads, readsectors);
             last_writesectors = rrddim_set_by_pointer(d->st_io, d->rd_io_writes, writesectors);
+            rrddim_set_by_pointer(d->st_io, d->rd_io_all, readsectors + writesectors);
             rrdset_done(d->st_io);
         }
 
@@ -1021,7 +1025,7 @@ int do_proc_diskstats(int update_every, usec_t dt) {
                         , "operations/s"
                         , PLUGIN_PROC_NAME
                         , PLUGIN_PROC_MODULE_DISKSTATS_NAME
-                        , NETDATA_CHART_PRIO_DISK_OPS
+                        , NETDATA_CHART_PRIO_DISK_IO
                         , update_every
                         , RRDSET_TYPE_LINE
                 );
@@ -1030,11 +1034,13 @@ int do_proc_diskstats(int update_every, usec_t dt) {
 
                 d->rd_ops_reads  = rrddim_add(d->st_ops, "reads",  NULL,  1, 1, RRD_ALGORITHM_INCREMENTAL);
                 d->rd_ops_writes = rrddim_add(d->st_ops, "writes", NULL, -1, 1, RRD_ALGORITHM_INCREMENTAL);
+                d->rd_ops_all = rrddim_add(d->st_ops, "all", NULL, 1, 1, RRD_ALGORITHM_INCREMENTAL);
             }
             else rrdset_next(d->st_ops);
 
             last_reads  = rrddim_set_by_pointer(d->st_ops, d->rd_ops_reads, reads);
             last_writes = rrddim_set_by_pointer(d->st_ops, d->rd_ops_writes, writes);
+            rrddim_set_by_pointer(d->st_ops, d->rd_ops_all, reads + writes);
             rrdset_done(d->st_ops);
         }
 
