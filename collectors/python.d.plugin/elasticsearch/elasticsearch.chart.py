@@ -613,6 +613,9 @@ class Service(UrlService):
         if not data:
             return queue.put(dict())
 
+        if len(list(data['nodes'].keys())) == 0:
+            self.error('Data nodes key is has 9 length')
+            continue
         node = list(data['nodes'].keys())[0]
         to_netdata = fetch_data_(raw_data=data['nodes'][node],
                                  metrics=NODE_STATS)
