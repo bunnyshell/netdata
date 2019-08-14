@@ -28,7 +28,8 @@ CHARTS = {
         'options': [None, 'Cache Size', 'MiB', 'cache', 'memcached.cache', 'stacked'],
         'lines': [
             ['avail', 'available', 'absolute', 1, 1 << 20],
-            ['used', 'used', 'absolute', 1, 1 << 20]
+            ['used', 'used', 'absolute', 1, 1 << 20],
+            ['ratio', 'ratio', 'absolute', 1, 1]
         ]
     },
     'net': {
@@ -173,6 +174,7 @@ class Service(SocketService):
         try:
             data['avail'] = int(data['limit_maxbytes']) - int(data['bytes'])
             data['used'] = int(data['bytes'])
+            data['ratio'] = data['used'] * 100 / (data['used'] + data['avail'])
         except (KeyError, ValueError, TypeError):
             pass
 
