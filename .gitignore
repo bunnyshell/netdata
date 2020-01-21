@@ -37,6 +37,7 @@ sha256sums.txt
 
 # netdata binaries
 netdata
+netdatacli
 !netdata/
 upload/
 artifacts/
@@ -59,6 +60,9 @@ xenstat.plugin
 perf.plugin
 !perf.plugin/
 
+slabinfo.plugin
+!slabinfo.plugin/
+
 cgroup-network
 !cgroup-network/
 
@@ -77,8 +81,7 @@ packaging/makeself/tmp/
 # coverity
 cov-int/
 netdata-coverity-analysis.tgz
-.coverity-token
-.coverity-build
+.coverity-scan.conf
 
 .cproject/
 .idea/
@@ -87,7 +90,6 @@ netdata-coverity-analysis.tgz
 .settings/
 README
 TODO.md
-netdata.conf
 TODO.txt
 
 web/gui/chart-info/
@@ -111,8 +113,10 @@ system/netdata-freebsd
 system/edit-config
 
 daemon/anonymous-statistics.sh
+daemon/get-kubernetes-labels.sh
 
 health/notifications/alarm-notify.sh
+claim/netdata-claim.sh
 collectors/cgroups.plugin/cgroup-name.sh
 collectors/tc.plugin/tc-qos-helper.sh
 collectors/charts.d.plugin/charts.d.plugin
@@ -168,13 +172,20 @@ gmon.txt
 sitespeed-result/
 tests/acls/acl.sh
 tests/urls/request.sh
+tests/alarm_repetition/alarm.sh
+tests/template_dimension/template_dim.sh
 
 # tests and temp files
+test-driver
+**/tests/*_testdriver
+**/tests/*_testdriver.trs
 python.d/python-modules-installer.sh
 
 # documentation generated files
 docs/generator/src
 docs/generator/build
+docs/generator/doc
+docs/generator/localization
 docs/generator/mkdocs.yml
 
 .environment.sh

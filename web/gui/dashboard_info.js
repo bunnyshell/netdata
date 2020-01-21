@@ -54,7 +54,7 @@ netdataDashboard.menu = {
         title: 'Networking Stack',
         icon: '<i class="fas fa-cloud"></i>',
         info: function (os) {
-            if(os === "linux")
+            if (os === "linux")
                 return 'Metrics for the networking stack of the system. These metrics are collected from <code>/proc/net/netstat</code>, apply to both IPv4 and IPv6 traffic and are related to operation of the kernel networking stack.';
             else
                 return 'Metrics for the networking stack of the system.';
@@ -211,6 +211,12 @@ netdataDashboard.menu = {
         title: 'fping',
         icon: '<i class="fas fa-exchange-alt"></i>',
         info: 'Network latency statistics, via <b>fping</b>. <b>fping</b> is a program to send ICMP echo probes to network hosts, similar to <code>ping</code>, but much better performing when pinging multiple hosts. fping versions after 3.15 can be directly used as netdata plugins.'
+    },
+
+    'gearman': {
+        title: 'Gearman',
+        icon: '<i class="fas fa-tasks"></i>',
+        info: 'Gearman is a job server that allows you to do work in parallel, to load balance processing, and to call functions between languages.'
     },
 
     'ioping': {
@@ -486,7 +492,50 @@ netdataDashboard.menu = {
         title: 'Perf Counters',
         icon: '<i class="fas fa-tachometer-alt"></i>',
         info: 'Performance Monitoring Counters (PMC). Data collected using <b>perf_event_open()</b> system call which utilises Hardware Performance Monitoring Units (PMU).'
+    },
+
+    'vsphere': {
+        title: 'vSphere',
+        icon: '<i class="fas fa-server"></i>',
+        info: 'Performance statistics for ESXI hosts and virtual machines. Data collected from <a href="https://www.vmware.com/products/vcenter-server.html">VMware vCenter Server</a> using <code><a href="https://github.com/vmware/govmomi"> govmomi</a></code>  library.'
+    },
+
+    'vcsa': {
+        title: 'VCSA',
+        icon: '<i class="fas fa-server"></i>',
+        info: 'vCenter Server Appliance health statistics. Data collected from <a href="https://vmware.github.io/vsphere-automation-sdk-rest/vsphere/index.html#SVC_com.vmware.appliance.health">Health API</a>.'
+    },
+
+    'zookeeper': {
+        title: 'Zookeeper',
+        icon: '<i class="fas fa-database"></i>',
+        info: 'Provides health statistics for <b><a href="https://zookeeper.apache.org/">Zookeeper</a></b> server. Data collected through the command port using <code><a href="https://zookeeper.apache.org/doc/r3.5.5/zookeeperAdmin.html#sc_zkCommands">mntr</a></code> command.'
+    },
+
+    'hdfs': {
+        title: 'HDFS',
+        icon: '<i class="fas fa-folder-open"></i>',
+        info: 'Provides <b><a href="https://hadoop.apache.org/docs/r3.2.0/hadoop-project-dist/hadoop-hdfs/HdfsDesign.html">Hadoop Distributed File System</a></b> performance statistics. Module collects metrics over <code>Java Management Extensions</code> through the web interface of an <code>HDFS</code> daemon.'
+    },
+
+    'am2320': {
+        title: 'AM2320 Sensor',
+        icon: '<i class="fas fa-thermometer-half"></i>',
+        info: 'Readings from the external AM2320 Sensor.'
+    },
+
+    'scaleio': {
+        title: 'ScaleIO',
+        icon: '<i class="fas fa-database"></i>',
+        info: 'Performance and health statistics for various ScaleIO components. Data collected via VxFlex OS Gateway REST API.'
+    },
+
+    'squidlog': {
+        title: 'Squid log',
+        icon: '<i class="fas fa-file-alt"></i>',
+        info: undefined
     }
+
 };
 
 
@@ -668,7 +717,7 @@ var cgroupMemLimitIsSet = 0;
 netdataDashboard.context = {
     'system.cpu': {
         info: function (os) {
-            void(os);
+            void (os);
             return 'Total CPU utilization (all cores). 100% here means there is no CPU idle time at all. You can get per core usage at the <a href="#menu_cpu">CPUs</a> section and per application usage at the <a href="#menu_apps">Applications Monitoring</a> section.'
                 + netdataDashboard.sparkline('<br/>Keep an eye on <b>iowait</b> ', 'system.cpu', 'iowait', '%', '. If it is constantly high, your disks are a bottleneck and they slow your system down.')
                 + netdataDashboard.sparkline('<br/>An important metric worth monitoring, is <b>softirq</b> ', 'system.cpu', 'softirq', '%', '. A constantly high percentage of softirq may indicate network driver issues.');
@@ -679,6 +728,31 @@ netdataDashboard.context = {
     'system.load': {
         info: 'Current system load, i.e. the number of processes using CPU or waiting for system resources (usually CPU and disk). The 3 metrics refer to 1, 5 and 15 minute averages. The system calculates this once every 5 seconds. For more information check <a href="https://en.wikipedia.org/wiki/Load_(computing)" target="_blank">this wikipedia article</a>',
         height: 0.7
+    },
+
+    'system.cpu_pressure': {
+        info: '<a href="https://www.kernel.org/doc/html/latest/accounting/psi.html">Pressure Stall Information</a> ' +
+            'identifies and quantifies the disruptions caused by resource contentions. ' +
+            'The "some" line indicates the share of time in which at least <b>some</b> tasks are stalled on CPU. ' +
+            'The ratios (in %) are tracked as recent trends over 10-, 60-, and 300-second windows.'
+    },
+
+    'system.memory_some_pressure': {
+        info: '<a href="https://www.kernel.org/doc/html/latest/accounting/psi.html">Pressure Stall Information</a> ' +
+            'identifies and quantifies the disruptions caused by resource contentions. ' +
+            'The "some" line indicates the share of time in which at least <b>some</b> tasks are stalled on memory. ' +
+            'The "full" line indicates the share of time in which <b>all non-idle</b> tasks are stalled on memory simultaneously. ' +
+            'In this state actual CPU cycles are going to waste, and a workload that spends extended time in this state is considered to be thrashing. ' +
+            'The ratios (in %) are tracked as recent trends over 10-, 60-, and 300-second windows.'
+    },
+
+    'system.io_some_pressure': {
+        info: '<a href="https://www.kernel.org/doc/html/latest/accounting/psi.html">Pressure Stall Information</a> ' +
+            'identifies and quantifies the disruptions caused by resource contentions. ' +
+            'The "some" line indicates the share of time in which at least <b>some</b> tasks are stalled on I/O. ' +
+            'The "full" line indicates the share of time in which <b>all non-idle</b> tasks are stalled on I/O simultaneously. ' +
+            'In this state actual CPU cycles are going to waste, and a workload that spends extended time in this state is considered to be thrashing. ' +
+            'The ratios (in %) are tracked as recent trends over 10-, 60-, and 300-second windows.'
     },
 
     'system.io': {
@@ -810,7 +884,7 @@ netdataDashboard.context = {
     'mem.ksm_ratios': {
         heads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-gauge-max-value="100"'
                     + ' data-chart-library="gauge"'
@@ -825,6 +899,32 @@ netdataDashboard.context = {
             }
         ]
     },
+
+    'mem.zram_usage': {
+        info: 'ZRAM total RAM usage metrics. ZRAM uses some memory to store metadata about stored memory pages, thus introducing an overhead which is proportional to disk size. It excludes same-element-filled-pages since no memory is allocated for them.'
+    },
+
+    'mem.zram_savings': {
+        info: 'Displays original and compressed memory data sizes.'
+    },
+
+    'mem.zram_ratio': {
+        heads: [
+            netdataDashboard.gaugeChart('Compression Ratio', '12%', 'ratio', '#0099CC')
+        ],
+        info: 'Compression ratio, calculated as <code>100 * original_size / compressed_size</code>. More means better compression and more RAM savings.'
+    },
+
+    'mem.zram_efficiency': {
+        heads: [
+            netdataDashboard.gaugeChart('Efficiency', '12%', 'percent', NETDATA.colors[0])
+        ],
+        commonMin: true,
+        commonMax: true,
+        valueRange: "[0, 100]",
+        info: 'Memory usage efficiency, calculated as <code>100 * compressed_size / total_mem_used</code>.'
+    },
+
 
     'mem.pgfaults': {
         info: 'A <a href="https://en.wikipedia.org/wiki/Page_fault" target="_blank">page fault</a> is a type of interrupt, called trap, raised by computer hardware when a running program accesses a memory page that is mapped into the virtual address space, but not actually loaded into main memory. If the page is loaded in memory at the time the fault is generated, but is not marked in the memory management unit as being loaded in memory, then it is called a <b>minor</b> or soft page fault. A <b>major</b> page fault is generated when the system needs to load the memory page from disk or swap memory.'
@@ -953,6 +1053,10 @@ netdataDashboard.context = {
         height: 2.0
     },
 
+    'apps.uptime': {
+        info: 'Carried over process group uptime since the Netdata restart. The period of time within which at least one process in the group was running.'
+    },
+
     // ------------------------------------------------------------------------
     // USERS
 
@@ -976,6 +1080,10 @@ netdataDashboard.context = {
         height: 2.0
     },
 
+    'users.uptime': {
+        info: 'Carried over process group uptime since the Netdata restart. The period of time within which at least one process in the group was running.'
+    },
+
     // ------------------------------------------------------------------------
     // GROUPS
 
@@ -988,7 +1096,7 @@ netdataDashboard.context = {
     },
 
     'groups.vmem': {
-        info: 'Virtual memory allocated per user group. Please check <a href="https://github.com/netdata/netdata/tree/master/daemon#virtual-memory" target="_blank">this article</a> for more information.'
+        info: 'Virtual memory allocated per user group since the Netdata restart. Please check <a href="https://github.com/netdata/netdata/tree/master/daemon#virtual-memory" target="_blank">this article</a> for more information.'
     },
 
     'groups.preads': {
@@ -999,13 +1107,17 @@ netdataDashboard.context = {
         height: 2.0
     },
 
+    'groups.uptime': {
+        info: 'Carried over process group uptime. The period of time within which at least one process in the group was running.'
+    },
+
     // ------------------------------------------------------------------------
     // NETWORK QoS
 
     'tc.qos': {
         heads: [
             function (os, id) {
-                void(os);
+                void (os);
 
                 if (id.match(/.*-ifb$/))
                     return netdataDashboard.gaugeChart('Inbound', '12%', '', '#5555AA');
@@ -1021,46 +1133,42 @@ netdataDashboard.context = {
     'net.net': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 if (id.match(/^cgroup_.*/)) {
                     var iface;
                     try {
                         iface = ' ' + id.substring(id.lastIndexOf('.net_') + 5, id.length);
-                    }
-                    catch (e) {
+                    } catch (e) {
                         iface = '';
                     }
                     return netdataDashboard.gaugeChart('Received' + iface, '12%', 'received');
-                }
-                else
+                } else
                     return '';
             },
             function (os, id) {
-                void(os);
+                void (os);
                 if (id.match(/^cgroup_.*/)) {
                     var iface;
                     try {
                         iface = ' ' + id.substring(id.lastIndexOf('.net_') + 5, id.length);
-                    }
-                    catch (e) {
+                    } catch (e) {
                         iface = '';
                     }
                     return netdataDashboard.gaugeChart('Sent' + iface, '12%', 'sent');
-                }
-                else
+                } else
                     return '';
             }
         ],
         heads: [
             function (os, id) {
-                void(os);
+                void (os);
                 if (!id.match(/^cgroup_.*/))
                     return netdataDashboard.gaugeChart('Received', '12%', 'received');
                 else
                     return '';
             },
             function (os, id) {
-                void(os);
+                void (os);
                 if (!id.match(/^cgroup_.*/))
                     return netdataDashboard.gaugeChart('Sent', '12%', 'sent');
                 else
@@ -1192,6 +1300,39 @@ netdataDashboard.context = {
         info: 'A deadlock happens when two or more transactions mutually hold and request for locks, creating a cycle of dependencies. For more information about <a href="https://dev.mysql.com/doc/refman/5.7/en/innodb-deadlocks-handling.html" target="_blank">how to minimize and handle deadlocks</a>.'
     },
 
+    'mysql.galera_cluster_status': {
+        info:
+            '<code>-1</code>: unknown, ' +
+            '<code>0</code>: primary (primary group configuration, quorum present), ' +
+            '<code>1</code>: non-primary (non-primary group configuration, quorum lost), ' +
+            '<code>2</code>: disconnected(not connected to group, retrying).'
+    },
+
+    'mysql.galera_cluster_state': {
+        info:
+            '<code>0</code>: undefined, ' +
+            '<code>1</code>: joining, ' +
+            '<code>2</code>: donor/desynced, ' +
+            '<code>3</code>: joined, ' +
+            '<code>4</code>: synced.'
+    },
+
+    'mysql.galera_cluster_weight': {
+        info: 'The value is counted as a sum of <code>pc.weight</code> of the nodes in the current Primary Component.'
+    },
+
+    'mysql.galera_connected': {
+        info: '<code>0</code> means that the node has not yet connected to any of the cluster components. ' +
+            'This may be due to misconfiguration.'
+    },
+
+    'mysql.open_transactions': {
+        info: 'The number of locally running transactions which have been registered inside the wsrep provider. ' +
+            'This means transactions which have made operations which have caused write set population to happen. ' +
+            'Transactions which are read only are not counted.'
+    },
+
+
     // ------------------------------------------------------------------------
     // POSTGRESQL
 
@@ -1279,7 +1420,7 @@ netdataDashboard.context = {
     'apache.workers': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="busy"'
                     + ' data-append-options="percentage"'
@@ -1340,7 +1481,7 @@ netdataDashboard.context = {
     'lighttpd.workers': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="busy"'
                     + ' data-append-options="percentage"'
@@ -1431,7 +1572,7 @@ netdataDashboard.context = {
         info: 'Number of (connected) RetroShare friends.',
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="peers_connected"'
                     + ' data-append-options="friends"'
@@ -1471,7 +1612,7 @@ netdataDashboard.context = {
         valueRange: "[0, null]",
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 cgroupCPULimitIsSet = 1;
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="used"'
@@ -1493,7 +1634,7 @@ netdataDashboard.context = {
     'cgroup.cpu': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 if (cgroupCPULimitIsSet === 0) {
                     return '<div data-netdata="' + id + '"'
                         + ' data-chart-library="gauge"'
@@ -1506,8 +1647,7 @@ netdataDashboard.context = {
                         + ' data-points="CHART_DURATION"'
                         + ' data-colors="' + NETDATA.colors[4] + '"'
                         + ' role="application"></div>';
-                }
-                else
+                } else
                     return '';
             }
         ]
@@ -1516,7 +1656,7 @@ netdataDashboard.context = {
     'cgroup.mem_usage_limit': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 cgroupMemLimitIsSet = 1;
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="used"'
@@ -1539,7 +1679,7 @@ netdataDashboard.context = {
     'cgroup.mem_usage': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 if (cgroupMemLimitIsSet === 0) {
                     return '<div data-netdata="' + id + '"'
                         + ' data-chart-library="gauge"'
@@ -1552,8 +1692,7 @@ netdataDashboard.context = {
                         + ' data-points="CHART_DURATION"'
                         + ' data-colors="' + NETDATA.colors[1] + '"'
                         + ' role="application"></div>';
-                }
-                else
+                } else
                     return '';
             }
         ]
@@ -1562,7 +1701,7 @@ netdataDashboard.context = {
     'cgroup.throttle_io': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="read"'
                     + ' data-chart-library="gauge"'
@@ -1577,7 +1716,7 @@ netdataDashboard.context = {
                     + ' role="application"></div>';
             },
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="write"'
                     + ' data-chart-library="gauge"'
@@ -1714,10 +1853,10 @@ netdataDashboard.context = {
     // web_log
 
     'web_log.response_statuses': {
-        info: 'Web server responses by type. <code>success</code> includes <b>1xx</b>, <b>2xx</b> and <b>304</b>, <code>error</code> includes <b>5xx</b>, <code>redirect</code> includes <b>3xx</b> except <b>304</b>, <code>bad</code> includes <b>4xx</b>, <code>other</code> are all the other responses.',
+        info: 'Web server responses by type. <code>success</code> includes <b>1xx</b>, <b>2xx</b>, <b>304</b> and <b>401</b>, <code>error</code> includes <b>5xx</b>, <code>redirect</code> includes <b>3xx</b> except <b>304</b>, <code>bad</code> includes <b>4xx</b> except <b>401</b>, <code>other</code> are all the other responses.',
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="success"'
                     + ' data-chart-library="gauge"'
@@ -1735,7 +1874,7 @@ netdataDashboard.context = {
             },
 
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="redirect"'
                     + ' data-chart-library="gauge"'
@@ -1753,7 +1892,7 @@ netdataDashboard.context = {
             },
 
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="bad"'
                     + ' data-chart-library="gauge"'
@@ -1771,7 +1910,7 @@ netdataDashboard.context = {
             },
 
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="error"'
                     + ' data-chart-library="gauge"'
@@ -1804,7 +1943,7 @@ netdataDashboard.context = {
     'web_log.response_time': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="avg"'
                     + ' data-chart-library="gauge"'
@@ -1850,7 +1989,7 @@ netdataDashboard.context = {
             '<code>other</code> are all the other responses.',
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="success"'
                     + ' data-chart-library="gauge"'
@@ -1868,7 +2007,7 @@ netdataDashboard.context = {
             },
 
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="redirect"'
                     + ' data-chart-library="gauge"'
@@ -1886,7 +2025,7 @@ netdataDashboard.context = {
             },
 
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="bad"'
                     + ' data-chart-library="gauge"'
@@ -1904,7 +2043,7 @@ netdataDashboard.context = {
             },
 
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="error"'
                     + ' data-chart-library="gauge"'
@@ -1939,7 +2078,7 @@ netdataDashboard.context = {
     'web_log.squid_duration': {
         mainheads: [
             function (os, id) {
-                void(os);
+                void (os);
                 return '<div data-netdata="' + id + '"'
                     + ' data-dimensions="avg"'
                     + ' data-chart-library="gauge"'
@@ -2296,35 +2435,7 @@ netdataDashboard.context = {
     },
 
     'spigotmc.users': {
-        info: 'THe number of currently connect users on the monitored Spigot server.'
-    },
-
-    'unbound.queries': {
-        info: 'Shows the number of queries being processed of each type. Note that <code>Recursive</code> queries are also accounted as cache misses.'
-    },
-
-    'unbound.reqlist': {
-        info: 'Shows various stats about Unbound\'s internal request list.'
-    },
-
-    'unbound.recursion': {
-        info: 'Average and median time to complete recursive name resolution.'
-    },
-
-    'unbound.cache': {
-        info: 'The number of items in each of the various caches.'
-    },
-
-    'unbound.threads.queries': {
-        height: 0.2
-    },
-
-    'unbound.threads.reqlist': {
-        height: 0.2
-    },
-
-    'unbound.threads.recursion': {
-        height: 0.2
+        info: 'The number of currently connect users on the monitored Spigot server.'
     },
 
     'boinc.tasks': {
@@ -2364,33 +2475,33 @@ netdataDashboard.context = {
 
     'proxysql.pool_status': {
         info: 'The status of the backend servers. ' +
-        '<code>1=ONLINE</code> backend server is fully operational, ' +
-        '<code>2=SHUNNED</code> backend sever is temporarily taken out of use because of either too many connection errors in a time that was too short, or replication lag exceeded the allowed threshold, ' +
-        '<code>3=OFFLINE_SOFT</code> when a server is put into OFFLINE_SOFT mode, new incoming connections aren\'t accepted anymore, while the existing connections are kept until they became inactive. In other words, connections are kept in use until the current transaction is completed. This allows to gracefully detach a backend, ' +
-        '<code>4=OFFLINE_HARD</code> when a server is put into OFFLINE_HARD mode, the existing connections are dropped, while new incoming connections aren\'t accepted either. This is equivalent to deleting the server from a hostgroup, or temporarily taking it out of the hostgroup for maintenance work, ' +
-        '<code>-1</code> Unknown status.'
+            '<code>1=ONLINE</code> backend server is fully operational, ' +
+            '<code>2=SHUNNED</code> backend sever is temporarily taken out of use because of either too many connection errors in a time that was too short, or replication lag exceeded the allowed threshold, ' +
+            '<code>3=OFFLINE_SOFT</code> when a server is put into OFFLINE_SOFT mode, new incoming connections aren\'t accepted anymore, while the existing connections are kept until they became inactive. In other words, connections are kept in use until the current transaction is completed. This allows to gracefully detach a backend, ' +
+            '<code>4=OFFLINE_HARD</code> when a server is put into OFFLINE_HARD mode, the existing connections are dropped, while new incoming connections aren\'t accepted either. This is equivalent to deleting the server from a hostgroup, or temporarily taking it out of the hostgroup for maintenance work, ' +
+            '<code>-1</code> Unknown status.'
     },
 
     'proxysql.pool_net': {
         info: 'The amount of data sent to/received from the backend ' +
-        '(This does not include metadata (packets\' headers, OK/ERR packets, fields\' description, etc).'
+            '(This does not include metadata (packets\' headers, OK/ERR packets, fields\' description, etc).'
     },
 
     'proxysql.pool_overall_net': {
         info: 'The amount of data sent to/received from the all backends ' +
-        '(This does not include metadata (packets\' headers, OK/ERR packets, fields\' description, etc).'
+            '(This does not include metadata (packets\' headers, OK/ERR packets, fields\' description, etc).'
     },
 
     'proxysql.questions': {
         info: '<code>questions</code> total number of queries sent from frontends, ' +
-        '<code>slow_queries</code> number of queries that ran for longer than the threshold in milliseconds defined in global variable <code>mysql-long_query_time</code>. '
+            '<code>slow_queries</code> number of queries that ran for longer than the threshold in milliseconds defined in global variable <code>mysql-long_query_time</code>. '
     },
 
     'proxysql.connections': {
         info: '<code>aborted</code> number of frontend connections aborted due to invalid credential or max_connections reached, ' +
-        '<code>connected</code> number of frontend connections currently connected, ' +
-        '<code>created</code> number of frontend connections created, ' +
-        '<code>non_idle</code> number of frontend connections that are not currently idle. '
+            '<code>connected</code> number of frontend connections currently connected, ' +
+            '<code>created</code> number of frontend connections created, ' +
+            '<code>non_idle</code> number of frontend connections that are not currently idle. '
     },
 
     'proxysql.pool_latency': {
@@ -2442,7 +2553,281 @@ netdataDashboard.context = {
 
     'powersupply.voltage': {
         info: undefined
-    }
+    },
 
     // ------------------------------------------------------------------------
+    // VMware vSphere
+
+    // Host specific
+    'vsphere.host_mem_usage_percentage': {
+        info: 'Percentage of used machine memory: <code>consumed</code> / <code>machine-memory-size</code>.'
+    },
+
+    'vsphere.host_mem_usage': {
+        info:
+            '<code>granted</code> is amount of machine memory that is mapped for a host, ' +
+            'it equals sum of all granted metrics for all powered-on virtual machines, plus machine memory for vSphere services on the host. ' +
+            '<code>consumed</code> is amount of machine memory used on the host, it includes memory used by the Service Console, the VMkernel, vSphere services, plus the total consumed metrics for all running virtual machines. ' +
+            '<code>consumed</code> = <code>total host memory</code> - <code>free host memory</code>.' +
+            '<code>active</code> is sum of all active metrics for all powered-on virtual machines plus vSphere services (such as COS, vpxa) on the host.' +
+            '<code>shared</code> is sum of all shared metrics for all powered-on virtual machines, plus amount for vSphere services on the host. ' +
+            '<code>sharedcommon</code> is amount of machine memory that is shared by all powered-on virtual machines and vSphere services on the host. ' +
+            '<code>shared</code> - <code>sharedcommon</code> = machine memory (host memory) savings (KB). ' +
+            'For details see <a href="https://docs.vmware.com/en/VMware-vSphere/6.5/com.vmware.vsphere.resmgmt.doc/GUID-BFDC988B-F53D-4E97-9793-A002445AFAE1.html">Measuring and Differentiating Types of Memory Usage</a> and ' +
+            '<a href="https://www.vmware.com/support/developer/converter-sdk/conv51_apireference/memory_counters.html">Memory Counters</a> articles.'
+    },
+
+    'vsphere.host_mem_swap_rate': {
+        info:
+            'This statistic refers to VMkernel swapping and not to guest OS swapping. ' +
+            '<code>in</code> is sum of <code>swapinRate</code> values for all powered-on virtual machines on the host.' +
+            '<code>swapinRate</code> is rate at which VMKernel reads data into machine memory from the swap file. ' +
+            '<code>out</code> is sum of <code>swapoutRate</code> values for all powered-on virtual machines on the host.' +
+            '<code>swapoutRate</code> is rate at which VMkernel writes to the virtual machine’s swap file from machine memory.'
+    },
+
+    // VM specific
+    'vsphere.vm_mem_usage_percentage': {
+        info: 'Percentage of used virtual machine “physical” memory: <code>actvive</code> / <code>virtual machine configured size</code>.'
+    },
+
+    'vsphere.vm_mem_usage': {
+        info:
+            '<code>granted</code> is amount of guest “physical” memory that is mapped to machine memory, it includes <code>shared</code> memory amount. ' +
+            '<code>consumed</code> is amount of guest “physical” memory consumed by the virtual machine for guest memory, ' +
+            '<code>consumed</code> = <code>granted</code> - <code>memory saved due to memory sharing</code>. ' +
+            '<code>active</code> is amount of memory that is actively used, as estimated by VMkernel based on recently touched memory pages. ' +
+            '<code>shared</code> is amount of guest “physical” memory shared with other virtual machines (through the VMkernel’s transparent page-sharing mechanism, a RAM de-duplication technique). ' +
+            'For details see <a href="https://docs.vmware.com/en/VMware-vSphere/6.5/com.vmware.vsphere.resmgmt.doc/GUID-BFDC988B-F53D-4E97-9793-A002445AFAE1.html">Measuring and Differentiating Types of Memory Usage</a> and ' +
+            '<a href="https://www.vmware.com/support/developer/converter-sdk/conv51_apireference/memory_counters.html">Memory Counters</a> articles.'
+
+    },
+
+    'vsphere.vm_mem_swap_rate': {
+        info:
+            'This statistic refers to VMkernel swapping and not to guest OS swapping. ' +
+            '<code>in</code> is rate at which VMKernel reads data into machine memory from the swap file. ' +
+            '<code>out</code> is rate at which VMkernel writes to the virtual machine’s swap file from machine memory.'
+    },
+
+    'vsphere.vm_mem_swap': {
+        info:
+            'This statistic refers to VMkernel swapping and not to guest OS swapping. ' +
+            '<code>swapped</code> is amount of guest physical memory swapped out to the virtual machine\'s swap file by the VMkernel. ' +
+            'Swapped memory stays on disk until the virtual machine needs it.'
+    },
+
+    // Common
+    'vsphere.cpu_usage_total': {
+        info: 'Summary CPU usage statistics across all CPUs/cores.'
+    },
+
+    'vsphere.net_bandwidth_total': {
+        info: 'Summary receive/transmit statistics across all network interfaces.'
+    },
+
+    'vsphere.net_packets_total': {
+        info: 'Summary receive/transmit statistics across all network interfaces.'
+    },
+
+    'vsphere.net_errors_total': {
+        info: 'Summary receive/transmit statistics across all network interfaces.'
+    },
+
+    'vsphere.net_drops_total': {
+        info: 'Summary receive/transmit statistics across all network interfaces.'
+    },
+
+    'vsphere.disk_usage_total': {
+        info: 'Summary read/write statistics across all disks.'
+    },
+
+    'vsphere.disk_max_latency': {
+        info: '<code>latency</code> is highest latency value across all disks.'
+    },
+
+    'vsphere.overall_status': {
+        info: '<code>0</code> is unknown, <code>1</code> is OK, <code>2</code> is might have a problem, <code>3</code> is definitely has a problem.'
+    },
+
+    // ------------------------------------------------------------------------
+    // VCSA
+    'vcsa.system_health': {
+        info:
+            '<code>-1</code>: unknown; ' +
+            '<code>0</code>: all components are healthy; ' +
+            '<code>1</code>: one or more components might become overloaded soon; ' +
+            '<code>2</code>: one or more components in the appliance might be degraded; ' +
+            '<code>3</code>: one or more components might be in an unusable status and the appliance might become unresponsive soon; ' +
+            '<code>4</code>: no health data is available.'
+    },
+
+    'vcsa.components_health': {
+        info:
+            '<code>-1</code>: unknown; ' +
+            '<code>0</code>: healthy; ' +
+            '<code>1</code>: healthy, but may have some problems; ' +
+            '<code>2</code>: degraded, and may have serious problems; ' +
+            '<code>3</code>: unavailable, or will stop functioning soon; ' +
+            '<code>4</code>: no health data is available.'
+    },
+
+    'vcsa.software_updates_health': {
+        info:
+            '<code>softwarepackages</code> represents information on available software updates available in the remote vSphere Update Manager repository.<br>' +
+            '<code>-1</code>: unknown; ' +
+            '<code>0</code>: no updates available; ' +
+            '<code>2</code>: non-security updates are available; ' +
+            '<code>3</code>: security updates are available; ' +
+            '<code>4</code>: an error retrieving information on software updates.'
+    },
+
+    // ------------------------------------------------------------------------
+    // Zookeeper
+
+    'zookeeper.server_state': {
+        info:
+            '<code>0</code>: unknown, ' +
+            '<code>1</code>: leader, ' +
+            '<code>2</code>: follower, ' +
+            '<code>3</code>: observer, ' +
+            '<code>4</code>: standalone.'
+    },
+
+    // ------------------------------------------------------------------------
+    // Squidlog
+
+    'squidlog.requests': {
+        info: 'Total number of requests (log lines read). It includes <code>unmatched</code>.'
+    },
+
+    'squidlog.excluded_requests': {
+        info: '<code>unmatched</code> counts the lines in the log file that are not matched by the plugin parser (<a href="https://github.com/netdata/netdata/issues/new?title=squidlog%20reports%20unmatched%20lines&body=squidlog%20plugin%20reports%20unmatched%20lines.%0A%0AThis%20is%20my%20log:%0A%0A%60%60%60txt%0A%0Aplease%20paste%20your%20squid%20server%20log%20here%0A%0A%60%60%60" target="_blank">let us know</a> if you have any unmatched).'
+    },
+
+    'squidlog.type_requests': {
+        info: 'Requests by response type:<br>' +
+            '<ul>' +
+            ' <li><code>success</code> includes 1xx, 2xx, 0, 304, 401.</li>' +
+            ' <li><code>error</code> includes 5xx and 6xx.</li>' +
+            ' <li><code>redirect</code> includes 3xx except 304.</li>' +
+            ' <li><code>bad</code> includes 4xx except 401.</li>' +
+            ' </ul>'
+    },
+
+    'squidlog.http_status_code_class_responses': {
+        info: 'The HTTP response status code classes. According to <a href="https://tools.ietf.org/html/rfc7231" target="_blank">rfc7231</a>:<br>' +
+            ' <li><code>1xx</code> is informational responses.</li>' +
+            ' <li><code>2xx</code> is successful responses.</li>' +
+            ' <li><code>3xx</code> is redirects.</li>' +
+            ' <li><code>4xx</code> is bad requests.</li>' +
+            ' <li><code>5xx</code> is internal server errors.</li>' +
+            ' </ul>' +
+            'Squid also uses <code>0</code> for a result code being unavailable, and <code>6xx</code> to signal an invalid header, a proxy error.'
+    },
+
+    'squidlog.http_status_code_responses': {
+        info: 'Number of responses for each http response status code individually.'
+    },
+
+    'squidlog.uniq_clients': {
+        info: 'Unique clients (requesting instances), within each data collection iteration. If data collection is <b>per second</b>, this chart shows <b>unique clients per second</b>.'
+    },
+
+    'squidlog.bandwidth': {
+        info: 'The size is the amount of data delivered to the clients. Mind that this does not constitute the net object size, as headers are also counted. ' +
+            'Also, failed requests may deliver an error page, the size of which is also logged here.'
+    },
+
+    'squidlog.response_time': {
+        info: 'The elapsed time considers how many milliseconds the transaction busied the cache. It differs in interpretation between TCP and UDP:' +
+            '<ul>' +
+            ' <li><code>TCP</code> this is basically the time from having received the request to when Squid finishes sending the last byte of the response.</li>' +
+            ' <li><code>UDP</code> this is the time between scheduling a reply and actually sending it.</li>' +
+            ' </ul>' +
+            'Please note that <b>the entries are logged after the reply finished being sent</b>, not during the lifetime of the transaction.'
+    },
+
+    'squidlog.cache_result_code_requests': {
+        info: 'The Squid result code is composed of several tags (separated by underscore characters) which describe the response sent to the client. ' +
+            'Check the <a href="https://wiki.squid-cache.org/SquidFaq/SquidLogs#Squid_result_codes">squid documentation</a> about them.'
+    },
+
+    'squidlog.cache_result_code_transport_tag_requests': {
+        info: 'These tags are always present and describe delivery method.<br>' +
+            '<ul>' +
+            ' <li><code>TCP</code> requests on the HTTP port (usually 3128).</li>' +
+            ' <li><code>UDP</code> requests on the ICP port (usually 3130) or HTCP port (usually 4128).</li>' +
+            ' <li><code>NONE</code> Squid delivered an unusual response or no response at all. Seen with cachemgr requests and errors, usually when the transaction fails before being classified into one of the above outcomes. Also seen with responses to CONNECT requests.</li>' +
+            ' </ul>'
+    },
+
+    'squidlog.cache_result_code_handling_tag_requests': {
+        info: 'These tags are optional and describe why the particular handling was performed or where the request came from.<br>' +
+            '<ul>' +
+            ' <li><code>CF</code> at least one request in this transaction was collapsed. See <a href="http://www.squid-cache.org/Doc/config/collapsed_forwarding/" target="_blank">collapsed_forwarding</a>  for more details about request collapsing.</li>' +
+            ' <li><code>CLIENT</code> usually seen with client issued a "no-cache", or analogous cache control command along with the request. Thus, the cache has to validate the object.</li>' +
+            ' <li><code>IMS</code> the client sent a revalidation (conditional) request.</li>' +
+            ' <li><code>ASYNC</code> the request was generated internally by Squid. Usually this is background fetches for cache information exchanges, background revalidation from <i>stale-while-revalidate</i> cache controls, or ESI sub-objects being loaded.</li>' +
+            ' <li><code>SWAPFAIL</code> the object was believed to be in the cache, but could not be accessed. A new copy was requested from the server.</li>' +
+            ' <li><code>REFRESH</code> a revalidation (conditional) request was sent to the server.</li>' +
+            ' <li><code>SHARED</code> this request was combined with an existing transaction by collapsed forwarding.</li>' +
+            ' <li><code>REPLY</code> the HTTP reply from server or peer. Usually seen on <code>DENIED</code> due to <a href="http://www.squid-cache.org/Doc/config/http_reply_access/" target="_blank">http_reply_access</a> ACLs preventing delivery of servers response object to the client.</li>' +
+            ' </ul>'
+    },
+
+    'squidlog.cache_code_object_tag_requests': {
+        info: 'These tags are optional and describe what type of object was produced.<br>' +
+            '<ul>' +
+            ' <li><code>NEGATIVE</code> only seen on HIT responses, indicating the response was a cached error response. e.g. <b>404 not found</b>.</li>' +
+            ' <li><code>STALE</code> the object was cached and served stale. This is usually caused by <i>stale-while-revalidate</i> or <i>stale-if-error</i> cache controls.</li>' +
+            ' <li><code>OFFLINE</code> the requested object was retrieved from the cache during <a href="http://www.squid-cache.org/Doc/config/offline_mode/" target="_blank">offline_mode</a>. The offline mode never validates any object.</li>' +
+            ' <li><code>INVALID</code> an invalid request was received. An error response was delivered indicating what the problem was.</li>' +
+            ' <li><code>FAILED</code> only seen on <code>REFRESH</code> to indicate the revalidation request failed. The response object may be the server provided network error or the stale object which was being revalidated depending on stale-if-error cache control.</li>' +
+            ' <li><code>MODIFIED</code> only seen on <code>REFRESH</code> responses to indicate revalidation produced a new modified object.</li>' +
+            ' <li><code>UNMODIFIED</code> only seen on <code>REFRESH</code> responses to indicate revalidation produced a 304 (Not Modified) status. The client gets either a full 200 (OK), a 304 (Not Modified), or (in theory) another response, depending on the client request and other details.</li>' +
+            ' <li><code>REDIRECT</code> Squid generated an HTTP redirect response to this request.</li>' +
+            ' </ul>'
+    },
+
+    'squidlog.cache_code_load_source_tag_requests': {
+        info: 'These tags are optional and describe whether the response was loaded from cache, network, or otherwise.<br>' +
+            '<ul>' +
+            ' <li><code>HIT</code> the response object delivered was the local cache object.</li>' +
+            ' <li><code>MEM</code> the response object came from memory cache, avoiding disk accesses. Only seen on HIT responses.</li>' +
+            ' <li><code>MISS</code> the response object delivered was the network response object.</li>' +
+            ' <li><code>DENIED</code> the request was denied by access controls.</li>' +
+            ' <li><code>NOFETCH</code> an ICP specific type, indicating service is alive, but not to be used for this request.</li>' +
+            ' <li><code>TUNNEL</code> a binary tunnel was established for this transaction.</li>' +
+            ' </ul>'
+    },
+
+    'squidlog.cache_code_error_tag_requests': {
+        info: 'These tags are optional and describe some error conditions which occured during response delivery.<br>' +
+            '<ul>' +
+            ' <li><code>ABORTED</code> the response was not completed due to the connection being aborted (usually by the client).</li>' +
+            ' <li><code>TIMEOUT</code> the response was not completed due to a connection timeout.</li>' +
+            ' <li><code>IGNORED</code> while refreshing a previously cached response A, Squid got a response B that was older than A (as determined by the Date header field). Squid ignored response B (and attempted to use A instead).</li>' +
+            ' </ul>'
+    },
+
+    'squidlog.http_method_requests': {
+        info: 'The request method to obtain an object. Please refer to section <a href="https://wiki.squid-cache.org/SquidFaq/SquidLogs#Request_methods">request-methods</a> for available methods and their description.'
+    },
+
+    'squidlog.hier_code_requests': {
+        info: 'A code that explains how the request was handled, e.g. by forwarding it to a peer, or going straight to the source. ' +
+            'Any hierarchy tag may be prefixed with <code>TIMEOUT_</code>, if the timeout occurs waiting for all ICP replies to return from the neighbours. The timeout is either dynamic, if the <a href="http://www.squid-cache.org/Doc/config/icp_query_timeout/" target="_blank">icp_query_timeout</a> was not set, or the time configured there has run up. ' +
+            'Refer to <a href="https://wiki.squid-cache.org/SquidFaq/SquidLogs#Hierarchy_Codes" target="_blank">Hierarchy Codes</a> for details on hierarchy codes.'
+    },
+
+    'squidlog.server_address_forwarded_requests': {
+        info: 'The IP address or hostname where the request (if a miss) was forwarded. For requests sent to origin servers, this is the origin server\'s IP address. ' +
+            'For requests sent to a neighbor cache, this is the neighbor\'s hostname. NOTE: older versions of Squid would put the origin server hostname here.'
+    },
+
+    'squidlog.mime_type_requests': {
+        info: 'The content type of the object as seen in the HTTP reply header. Please note that ICP exchanges usually don\'t have any content type.'
+    }
+
 };

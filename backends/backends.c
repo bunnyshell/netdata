@@ -131,7 +131,8 @@ calculated_number backend_calculate_value_from_stored_data(
     }
 */
     for(rd->state->query_ops.init(rd, &handle, after, before) ; !rd->state->query_ops.is_finished(&handle) ; ) {
-        n = rd->state->query_ops.next_metric(&handle);
+        time_t curr_t;
+        n = rd->state->query_ops.next_metric(&handle, &curr_t);
 
         if(unlikely(!does_storage_number_exist(n))) {
             // not collected
@@ -249,12 +250,11 @@ static void backends_main_cleanup(void *ptr) {
 /**
  * Set Kinesis variables
  *
- * Set the variables necessaries to work with this specific backend.
+ * Set the variables necessary to work with this specific backend.
  *
- * @param default_port  the default port of the backend
+ * @param default_port the default port of the backend
  * @param brc function called to check the result.
- * @param brf function called to format the msessage to the backend
- * @param type the backend string selector.
+ * @param brf function called to format the message to the backend
  */
 void backend_set_kinesis_variables(int *default_port,
                                    backend_response_checker_t brc,
@@ -269,21 +269,20 @@ void backend_set_kinesis_variables(int *default_port,
 #if HAVE_KINESIS
     *brc = process_json_response;
     if (BACKEND_OPTIONS_DATA_SOURCE(global_backend_options) == BACKEND_SOURCE_DATA_AS_COLLECTED)
-        *brf = format_dimension_collected_json_plaintext;
+        *brf = backends_format_dimension_collected_json_plaintext;
     else
-        *brf = format_dimension_stored_json_plaintext;
+        *brf = backends_format_dimension_stored_json_plaintext;
 #endif
 }
 
 /**
  * Set Prometheus variables
  *
- * Set the variables necessaries to work with this specific backend.
+ * Set the variables necessary to work with this specific backend.
  *
- * @param default_port  the default port of the backend
+ * @param default_port the default port of the backend
  * @param brc function called to check the result.
- * @param brf function called to format the msessage to the backend
- * @param type the backend string selector.
+ * @param brf function called to format the message to the backend
  */
 void backend_set_prometheus_variables(int *default_port,
                                       backend_response_checker_t brc,
@@ -301,14 +300,41 @@ void backend_set_prometheus_variables(int *default_port,
 }
 
 /**
+ * Set MongoDB variables
+ *
+ * Set the variables necessary to work with this specific backend.
+ *
+ * @param default_port the default port of the backend
+ * @param brc function called to check the result.
+ * @param brf function called to format the message to the backend
+ */
+void backend_set_mongodb_variables(int *default_port,
+                                      backend_response_checker_t brc,
+                                      backend_request_formatter_t brf)
+{
+    (void)default_port;
+#ifndef HAVE_MONGOC
+    (void)brc;
+    (void)brf;
+#endif
+
+#if HAVE_MONGOC
+    *brc = process_json_response;
+    if(BACKEND_OPTIONS_DATA_SOURCE(global_backend_options) == BACKEND_SOURCE_DATA_AS_COLLECTED)
+        *brf = backends_format_dimension_collected_json_plaintext;
+    else
+        *brf = backends_format_dimension_stored_json_plaintext;
+#endif
+}
+
+/**
  * Set JSON variables
  *
- * Set the variables necessaries to work with this specific backend.
+ * Set the variables necessary to work with this specific backend.
  *
- * @param default_port  the default port of the backend
+ * @param default_port the default port of the backend
  * @param brc function called to check the result.
- * @param brf function called to format the msessage to the backend
- * @param type the backend string selector.
+ * @param brf function called to format the message to the backend
  */
 void backend_set_json_variables(int *default_port,
                                 backend_response_checker_t brc,
@@ -318,20 +344,19 @@ void backend_set_json_variables(int *default_port,
     *brc = process_json_response;
 
     if (BACKEND_OPTIONS_DATA_SOURCE(global_backend_options) == BACKEND_SOURCE_DATA_AS_COLLECTED)
-        *brf = format_dimension_collected_json_plaintext;
+        *brf = backends_format_dimension_collected_json_plaintext;
     else
-        *brf = format_dimension_stored_json_plaintext;
+        *brf = backends_format_dimension_stored_json_plaintext;
 }
 
 /**
  * Set OpenTSDB HTTP variables
  *
- * Set the variables necessaries to work with this specific backend.
+ * Set the variables necessary to work with this specific backend.
  *
- * @param default_port  the default port of the backend
+ * @param default_port the default port of the backend
  * @param brc function called to check the result.
- * @param brf function called to format the msessage to the backend
- * @param type the backend string selector.
+ * @param brf function called to format the message to the backend
  */
 void backend_set_opentsdb_http_variables(int *default_port,
                                          backend_response_checker_t brc,
@@ -341,21 +366,20 @@ void backend_set_opentsdb_http_variables(int *default_port,
     *brc = process_opentsdb_response;
 
     if(BACKEND_OPTIONS_DATA_SOURCE(global_backend_options) == BACKEND_SOURCE_DATA_AS_COLLECTED)
-        *brf = format_dimension_collected_opentsdb_http;
+        *brf = backends_format_dimension_collected_opentsdb_http;
     else
-        *brf = format_dimension_stored_opentsdb_http;
+        *brf = backends_format_dimension_stored_opentsdb_http;
 
 }
 
 /**
  * Set OpenTSDB Telnet variables
  *
- * Set the variables necessaries to work with this specific backend.
+ * Set the variables necessary to work with this specific backend.
  *
- * @param default_port  the default port of the backend
+ * @param default_port the default port of the backend
  * @param brc function called to check the result.
- * @param brf function called to format the msessage to the backend
- * @param type the backend string selector.
+ * @param brf function called to format the message to the backend
  */
 void backend_set_opentsdb_telnet_variables(int *default_port,
                                            backend_response_checker_t brc,
@@ -365,20 +389,19 @@ void backend_set_opentsdb_telnet_variables(int *default_port,
     *brc = process_opentsdb_response;
 
     if(BACKEND_OPTIONS_DATA_SOURCE(global_backend_options) == BACKEND_SOURCE_DATA_AS_COLLECTED)
-        *brf = format_dimension_collected_opentsdb_telnet;
+        *brf = backends_format_dimension_collected_opentsdb_telnet;
     else
-        *brf = format_dimension_stored_opentsdb_telnet;
+        *brf = backends_format_dimension_stored_opentsdb_telnet;
 }
 
 /**
  * Set Graphite variables
  *
- * Set the variables necessaries to work with this specific backend.
+ * Set the variables necessary to work with this specific backend.
  *
- * @param default_port  the default port of the backend
+ * @param default_port the default port of the backend
  * @param brc function called to check the result.
- * @param brf function called to format the msessage to the backend
- * @param type the backend string selector.
+ * @param brf function called to format the message to the backend
  */
 void backend_set_graphite_variables(int *default_port,
                                     backend_response_checker_t brc,
@@ -388,9 +411,9 @@ void backend_set_graphite_variables(int *default_port,
     *brc = process_graphite_response;
 
     if(BACKEND_OPTIONS_DATA_SOURCE(global_backend_options) == BACKEND_SOURCE_DATA_AS_COLLECTED)
-        *brf = format_dimension_collected_graphite_plaintext;
+        *brf = backends_format_dimension_collected_graphite_plaintext;
     else
-        *brf = format_dimension_stored_graphite_plaintext;
+        *brf = backends_format_dimension_stored_graphite_plaintext;
 }
 
 /**
@@ -416,10 +439,13 @@ BACKEND_TYPE backend_select_type(const char *type) {
         return BACKEND_TYPE_JSON;
     }
     else if (!strcmp(type, "prometheus_remote_write")) {
-        return  BACKEND_TYPE_PROMETEUS;
+        return  BACKEND_TYPE_PROMETHEUS;
     }
     else if (!strcmp(type, "kinesis") || !strcmp(type, "kinesis:plaintext")) {
         return BACKEND_TYPE_KINESIS;
+    }
+    else if (!strcmp(type, "mongodb") || !strcmp(type, "mongodb:plaintext")) {
+        return BACKEND_TYPE_MONGODB;
     }
 
     return BACKEND_TYPE_UNKNOWN;
@@ -450,7 +476,18 @@ void *backends_main(void *ptr) {
 
 #if ENABLE_PROMETHEUS_REMOTE_WRITE
     int do_prometheus_remote_write = 0;
-    BUFFER *http_request_header = buffer_create(1);
+    BUFFER *http_request_header = NULL;
+#endif
+
+#if HAVE_MONGOC
+    int do_mongodb = 0;
+    char *mongodb_uri = NULL;
+    char *mongodb_database = NULL;
+    char *mongodb_collection = NULL;
+
+    // set the default socket timeout in ms
+    int32_t mongodb_default_socket_timeout = (int32_t)(global_backend_update_every >= 2)?(global_backend_update_every * MSEC_PER_SEC - 500):1000;
+
 #endif
 
 #ifdef ENABLE_HTTPS
@@ -520,10 +557,11 @@ void *backends_main(void *ptr) {
             backend_set_opentsdb_http_variables(&default_port,&backend_response_checker,&backend_request_formatter);
             break;
         }
-        case BACKEND_TYPE_PROMETEUS: {
+        case BACKEND_TYPE_PROMETHEUS: {
 #if ENABLE_PROMETHEUS_REMOTE_WRITE
             do_prometheus_remote_write = 1;
 
+            http_request_header = buffer_create(1);
             init_write_request();
 #else
             error("BACKEND: Prometheus remote write support isn't compiled");
@@ -547,6 +585,30 @@ void *backends_main(void *ptr) {
             backend_set_kinesis_variables(&default_port,&backend_response_checker,&backend_request_formatter);
             break;
         }
+        case BACKEND_TYPE_MONGODB: {
+#if HAVE_MONGOC
+            if(unlikely(read_mongodb_conf(netdata_configured_user_config_dir,
+                                          &mongodb_uri,
+                                          &mongodb_database,
+                                          &mongodb_collection))) {
+                error("BACKEND: mongodb backend type is set but cannot read its configuration from %s/mongodb.conf",
+                      netdata_configured_user_config_dir);
+                goto cleanup;
+            }
+
+            if(likely(!mongodb_init(mongodb_uri, mongodb_database, mongodb_collection, mongodb_default_socket_timeout))) {
+                backend_set_mongodb_variables(&default_port, &backend_response_checker, &backend_request_formatter);
+                do_mongodb = 1;
+            }
+            else {
+                error("BACKEND: cannot initialize MongoDB backend");
+                goto cleanup;
+            }
+#else
+            error("BACKEND: MongoDB support isn't compiled");
+#endif // HAVE_MONGOC
+            break;
+        }
         case BACKEND_TYPE_GRAPHITE: {
             backend_set_graphite_variables(&default_port,&backend_response_checker,&backend_request_formatter);
             break;
@@ -560,6 +622,9 @@ void *backends_main(void *ptr) {
             break;
         }
         case BACKEND_TYPE_UNKNOWN: {
+            break;
+        }
+        default: {
             break;
         }
     }
@@ -658,7 +723,8 @@ void *backends_main(void *ptr) {
         size_t count_dims_total = 0;
 
 #if ENABLE_PROMETHEUS_REMOTE_WRITE
-        clear_write_request();
+        if(do_prometheus_remote_write)
+            clear_write_request();
 #endif
         rrd_rdlock();
         RRDHOST *host;
@@ -833,11 +899,52 @@ void *backends_main(void *ptr) {
                 chart_sent_metrics = chart_buffered_metrics;
 
             buffer_flush(b);
-        }
-        else {
-#else
-        {
+        } else
 #endif /* HAVE_KINESIS */
+
+#if HAVE_MONGOC
+        if(do_mongodb) {
+            size_t buffer_len = buffer_strlen(b);
+            size_t sent = 0;
+
+            while(sent < buffer_len) {
+                const char *first_char = buffer_tostring(b);
+
+                debug(D_BACKEND, "BACKEND: mongodb_insert(): uri = %s, database = %s, collection = %s, \
+                      buffer = %zu", mongodb_uri, mongodb_database, mongodb_collection, buffer_len);
+
+                if(likely(!mongodb_insert((char *)first_char, (size_t)chart_buffered_metrics))) {
+                    sent += buffer_len;
+                    chart_transmission_successes++;
+                    chart_receptions++;
+                }
+                else {
+                    // oops! we couldn't send (all or some of the) data
+                    error("BACKEND: failed to write data to database backend '%s'. Willing to write %zu bytes, wrote %zu bytes.",
+                          mongodb_uri, buffer_len, 0UL);
+
+                    chart_transmission_failures++;
+                    chart_data_lost_events++;
+                    chart_lost_bytes += buffer_len;
+
+                    // estimate the number of lost metrics
+                    chart_lost_metrics += (collected_number)chart_buffered_metrics;
+
+                    break;
+                }
+
+                if(unlikely(netdata_exit)) break;
+            }
+
+            chart_sent_bytes += sent;
+            if(likely(sent == buffer_len))
+                chart_sent_metrics = chart_buffered_metrics;
+
+            buffer_flush(b);
+        } else
+#endif /* HAVE_MONGOC */
+
+        {
 
             // ------------------------------------------------------------------------
             // if we are connected, receive a response, without blocking
@@ -1027,14 +1134,14 @@ void *backends_main(void *ptr) {
 
 
 #if ENABLE_PROMETHEUS_REMOTE_WRITE
-        if(failures) {
+        if(do_prometheus_remote_write && failures) {
             (void) buffer_on_failures;
             failures = 0;
             chart_lost_bytes = chart_buffered_bytes = get_write_request_size(); // estimated write request size
             chart_data_lost_events++;
             chart_lost_metrics = chart_buffered_metrics;
-        }
-#else
+        } else
+#endif
         if(failures > buffer_on_failures) {
             // too bad! we are going to lose data
             chart_lost_bytes += buffer_strlen(b);
@@ -1044,7 +1151,6 @@ void *backends_main(void *ptr) {
             chart_data_lost_events++;
             chart_lost_metrics = chart_buffered_metrics;
         }
-#endif /* ENABLE_PROMETHEUS_REMOTE_WRITE */
 
         if(unlikely(netdata_exit)) break;
 
@@ -1101,9 +1207,17 @@ cleanup:
 #endif
 
 #if ENABLE_PROMETHEUS_REMOTE_WRITE
-    if(do_prometheus_remote_write) {
-        buffer_free(http_request_header);
+    buffer_free(http_request_header);
+    if(do_prometheus_remote_write)
         protocol_buffers_shutdown();
+#endif
+
+#if HAVE_MONGOC
+    if(do_mongodb) {
+        mongodb_cleanup();
+        freez(mongodb_uri);
+        freez(mongodb_database);
+        freez(mongodb_collection);
     }
 #endif
 

@@ -148,6 +148,30 @@ typedef enum rrddim_flags {
 #define rrddim_flag_clear(rd, flag) (rd)->flags &= ~(flag)
 #endif
 
+typedef enum label_source {
+    LABEL_SOURCE_AUTO             = 0,
+    LABEL_SOURCE_NETDATA_CONF     = 1,
+    LABEL_SOURCE_DOCKER           = 2,
+    LABEL_SOURCE_ENVIRONMENT      = 3,
+    LABEL_SOURCE_KUBERNETES       = 4
+} LABEL_SOURCE;
+
+#define LABEL_FLAG_UPDATE_STREAM 1
+#define LABEL_FLAG_STOP_STREAM 2
+
+struct label {
+    char *key, *value;
+    uint32_t key_hash;
+    LABEL_SOURCE label_source;
+    struct label *next;
+};
+
+char *translate_label_source(LABEL_SOURCE l);
+struct label *create_label(char *key, char *value, LABEL_SOURCE label_source);
+struct label *add_label_to_list(struct label *l, char *key, char *value, LABEL_SOURCE label_source);
+extern void replace_label_list(RRDHOST *host, struct label *new_labels);
+extern void free_host_labels(struct label *labels);
+void reload_host_labels();
 
 // ----------------------------------------------------------------------------
 // RRD DIMENSION - this is a metric
@@ -273,8 +297,9 @@ struct rrddim_query_handle {
             struct rrdeng_page_descr *descr;
             struct rrdengine_instance *ctx;
             struct pg_cache_page_index *page_index;
-            time_t now; //TODO: remove now to implement next point iteration
-            time_t dt; //TODO: remove dt to implement next point iteration
+            time_t next_page_time;
+            time_t now;
+            unsigned position;
         } rrdeng; // state the database engine uses
 #endif
     };
@@ -307,7 +332,7 @@ struct rrddim_volatile {
         void (*init)(RRDDIM *rd, struct rrddim_query_handle *handle, time_t start_time, time_t end_time);
 
         // run this to load each metric number from the database
-        storage_number (*next_metric)(struct rrddim_query_handle *handle);
+        storage_number (*next_metric)(struct rrddim_query_handle *handle, time_t *current_time);
 
         // run this to test if the series of next_metric() database queries is finished
         int (*is_finished)(struct rrddim_query_handle *handle);
@@ -407,6 +432,7 @@ struct rrdset {
                                                     // it goes around in a round-robin fashion
 
     RRDSET_FLAGS flags;                             // configuration flags
+    RRDSET_FLAGS *exporting_flags;                  // array of flags for exporting connector instances
 
     int gap_when_lost_iterations_above;             // after how many lost iterations a gap should be stored
                                                     // netdata will interpolate values for gaps lower than this
@@ -626,6 +652,7 @@ struct rrdhost {
     const char *timezone;                           // the timezone of the host
 
     RRDHOST_FLAGS flags;                            // flags about this RRDHOST
+    RRDHOST_FLAGS *exporting_flags;                 // array of flags for exporting connector instances
 
     int rrd_update_every;                           // the update frequency of the host
     long rrd_history_entries;                       // the number of history entries for the host's charts
@@ -696,6 +723,7 @@ struct rrdhost {
     // RRDCALCs may be linked to charts at any point
     // (charts may or may not exist when these are loaded)
     RRDCALC *alarms;
+    RRDCALC *alarms_with_foreach;
     avl_tree_lock alarms_idx_health_log;
     avl_tree_lock alarms_idx_name;
 
@@ -708,6 +736,7 @@ struct rrdhost {
     // these are used to create alarms when charts
     // are created or renamed, that match them
     RRDCALCTEMPLATE *templates;
+    RRDCALCTEMPLATE *alarms_template_with_foreach;
 
 
     // ------------------------------------------------------------------------
@@ -720,6 +749,12 @@ struct rrdhost {
     // locks
 
     netdata_rwlock_t rrdhost_rwlock;                // lock for this RRDHOST (protects rrdset_root linked list)
+
+    // ------------------------------------------------------------------------
+    // Support for host-level labels
+    struct label *labels;
+    netdata_rwlock_t labels_rwlock;         // lock for the label list
+    uint32_t labels_flag;                   //Flags for labels
 
     // ------------------------------------------------------------------------
     // indexes
@@ -736,6 +771,7 @@ struct rrdhost {
 
 #ifdef ENABLE_HTTPS
     struct netdata_ssl ssl;                         //Structure used to encrypt the connection
+    struct netdata_ssl stream_ssl;                         //Structure used to encrypt the stream
 #endif
 
     struct rrdhost *next;
@@ -770,7 +806,7 @@ extern netdata_rwlock_t rrd_rwlock;
 extern size_t rrd_hosts_available;
 extern time_t rrdhost_free_orphan_time;
 
-extern void rrd_init(char *hostname, struct rrdhost_system_info *system_info);
+extern int rrd_init(char *hostname, struct rrdhost_system_info *system_info);
 
 extern RRDHOST *rrdhost_find_by_hostname(const char *hostname, uint32_t hash);
 extern RRDHOST *rrdhost_find_by_guid(const char *guid, uint32_t hash);
@@ -1007,6 +1043,7 @@ static inline time_t rrdset_slot2time(RRDSET *st, size_t slot) {
 // ----------------------------------------------------------------------------
 // RRD DIMENSION functions
 
+extern void rrdcalc_link_to_rrddim(RRDDIM *rd, RRDSET *st, RRDHOST *host);
 extern RRDDIM *rrddim_add_custom(RRDSET *st, const char *id, const char *name, collected_number multiplier, collected_number divisor, RRD_ALGORITHM algorithm, RRD_MEMORY_MODE memory_mode);
 #define rrddim_add(st, id, name, multiplier, divisor, algorithm) rrddim_add_custom(st, id, name, multiplier, divisor, algorithm, (st)->rrd_memory_mode)
 

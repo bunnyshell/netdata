@@ -340,6 +340,8 @@ static inline int access_to_file_is_not_permitted(struct web_client *w, const ch
     return HTTP_RESP_FORBIDDEN;
 }
 
+// Work around a bug in the CMocka library by removing this function during testing.
+#ifndef REMOVE_MYSENDFILE
 int mysendfile(struct web_client *w, char *filename) {
     debug(D_WEB_CLIENT, "%llu: Looking for file '%s/%s'", w->id, netdata_configured_web_dir, filename);
 
@@ -448,11 +450,13 @@ int mysendfile(struct web_client *w, char *filename) {
     w->response.data->date = statbuf.st_mtimespec.tv_sec;
 #else
     w->response.data->date = statbuf.st_mtim.tv_sec;
-#endif /* __APPLE__ */
+#endif 
     buffer_cacheable(w->response.data);
 
     return HTTP_RESP_OK;
 }
+#endif
+
 
 
 #ifdef NETDATA_WITH_ZLIB
@@ -791,7 +795,7 @@ static inline char *http_header_parse(struct web_client *w, char *s, int parse_u
         w->auth_bearer_token = strdupz(v);
     }
     else if(hash == hash_host && !strcasecmp(s, "Host")){
-        strncpyz(w->host, v, (ve - v));
+        strncpyz(w->server_host, v, ((size_t)(ve - v) < sizeof(w->server_host)-1 ? (size_t)(ve - v) : sizeof(w->server_host)-1));
     }
 #ifdef NETDATA_WITH_ZLIB
     else if(hash == hash_accept_encoding && !strcasecmp(s, "Accept-Encoding")) {
@@ -1065,9 +1069,6 @@ static inline HTTP_VALIDATION http_request_validate(struct web_client *w) {
                 // copy the URL - we are going to overwrite parts of it
                 // TODO -- ideally we we should avoid copying buffers around
                 strncpyz(w->last_url, w->decoded_url, NETDATA_WEB_REQUEST_URL_SIZE);
-                if (w->url_search_path && w->separator) {
-                    *w->url_search_path = 0x00;
-                }
 #ifdef ENABLE_HTTPS
                 if ( (!web_client_check_unix(w)) && (netdata_srv_ctx) ) {
                     if ((w->ssl.conn) && ((w->ssl.flags & NETDATA_SSL_NO_HANDSHAKE) && (web_client_is_using_ssl_force(w) || web_client_is_using_ssl_default(w)) && (w->mode != WEB_CLIENT_MODE_STREAM))  ) {
@@ -1150,8 +1151,8 @@ static inline void web_client_send_http_header(struct web_client *w) {
     char headerbegin[8328];
     if (w->response.code == HTTP_RESP_MOVED_PERM) {
         memcpy(headerbegin,"\r\nLocation: https://",20);
-        size_t headerlength = strlen(w->host);
-        memcpy(&headerbegin[20],w->host,headerlength);
+        size_t headerlength = strlen(w->server_host);
+        memcpy(&headerbegin[20],w->server_host,headerlength);
         headerlength += 20;
         size_t tmp = strlen(w->last_url);
         memcpy(&headerbegin[headerlength],w->last_url,tmp);
@@ -1215,7 +1216,7 @@ static inline void web_client_send_http_header(struct web_client *w) {
     if(w->mode == WEB_CLIENT_MODE_OPTIONS) {
         buffer_strcat(w->response.header_output,
                 "Access-Control-Allow-Methods: GET, OPTIONS\r\n"
-                        "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control\r\n"
+                        "Access-Control-Allow-Headers: accept, x-requested-with, origin, content-type, cookie, pragma, cache-control, x-auth-token\r\n"
                         "Access-Control-Max-Age: 1209600\r\n" // 86400 * 14
         );
     }
@@ -1269,7 +1270,7 @@ static inline void web_client_send_http_header(struct web_client *w) {
                 while((bytes = SSL_write(w->ssl.conn, buffer_tostring(w->response.header_output), buffer_strlen(w->response.header_output))) < 0) {
                     count++;
                     if(count > 100 || (errno != EAGAIN && errno != EWOULDBLOCK)) {
-                        error("Cannot send HTTP headers to web client.");
+                        error("Cannot send HTTPS headers to web client.");
                         break;
                     }
                 }
@@ -1338,8 +1339,16 @@ static inline int web_client_switch_host(RRDHOST *host, struct web_client *w, ch
     if(tok && *tok) {
         debug(D_WEB_CLIENT, "%llu: Searching for host with name '%s'.", w->id, tok);
 
+        if(!url) { //no delim found
+            debug(D_WEB_CLIENT, "%llu: URL doesn't end with / generating redirect.", w->id);
+            buffer_sprintf(w->response.header, "Location: http://%s%s/\r\n", w->server_host, w->last_url);
+            buffer_strcat(w->response.data, "Permanent redirect");
+            return HTTP_RESP_REDIR_PERM;
+        }
+
         // copy the URL, we need it to serve files
         w->last_url[0] = '/';
+
         if(url && *url) strncpyz(&w->last_url[1], url, NETDATA_WEB_REQUEST_URL_SIZE - 1);
         else w->last_url[1] = '\0';
 

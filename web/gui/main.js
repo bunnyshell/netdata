@@ -71,6 +71,7 @@ var urlOptions = {
     alarm_unique_id: 0,
     alarm_id: 0,
     alarm_event_id: 0,
+    alarm_when: 0,
 
     hasProperty: function (property) {
         // console.log('checking property ' + property + ' of type ' + typeof(this[property]));
@@ -139,7 +140,7 @@ var urlOptions = {
             }
         }
 
-        var numeric = ['after', 'before', 'highlight_after', 'highlight_before'];
+        var numeric = ['after', 'before', 'highlight_after', 'highlight_before', 'alarm_when'];
         len = numeric.length;
         while (len--) {
             if (typeof urlOptions[numeric[len]] === 'string') {
@@ -151,6 +152,22 @@ var urlOptions = {
                     urlOptions[numeric[len]] = 0;
                 }
             }
+        }
+
+        if (urlOptions.alarm_when) {
+            // if alarm_when exists, create after/before params
+            // -/+ 2 minutes from the alarm, and reload the page
+            const alarmTime = new Date(urlOptions.alarm_when * 1000).valueOf();
+            const timeMarginMs = 120000; // 2 mins
+
+            const after = alarmTime - timeMarginMs;
+            const before = alarmTime + timeMarginMs;
+            const newHash = document.location.hash.replace(
+                /;alarm_when=[0-9]*/i,
+                ";after=" + after + ";before=" + before,
+            );
+            history.replaceState(null, '', newHash);
+            location.reload();
         }
 
         if (urlOptions.server !== null && urlOptions.server !== '') {
@@ -690,10 +707,9 @@ function clearMyNetdataMenu() {
 }
 
 function errorMyNetdataMenu() {
-    setMyNetdataMenu(`<div class="agent-item" style="white-space: nowrap">
+    setMyNetdataMenu(`<div class="agent-item" style="padding: 0 8px">
         <i class="fas fa-exclamation-triangle" style="color: red"></i>
-        Cannot load known netdata agents from netdata.cloud!
-        <div></div>
+        Cannot load known Netdata agents from Netdata Cloud! Please make sure you have the latest version of Netdata.
     </div>`);
 }
 
@@ -708,7 +724,7 @@ function openAuthenticatedUrl(url) {
     if (isSignedIn()) {
         window.open(url);
     } else {
-        window.open(`${NETDATA.registry.cloudBaseURL}/account/sign-in-agent?id=${NETDATA.registry.machine_guid}&name=${encodeURIComponent(NETDATA.registry.hostname)}&origin=${encodeURIComponent(window.location.origin + "/")}&redirectUrl=${encodeURIComponent(window.location.origin + "/" + url)}`);
+        window.open(`${NETDATA.registry.cloudBaseURL}/account/sign-in-agent?id=${NETDATA.registry.machine_guid}&name=${encodeURIComponent(NETDATA.registry.hostname)}&origin=${encodeURIComponent(window.location.origin + "/")}&redirect_uri=${encodeURIComponent(window.location.origin + "/" + url)}`);
     }
 }
 
@@ -948,7 +964,7 @@ function gotoServerModalHandler(guid) {
 
     if (!isSignedIn()) {
         // When the registry is enabled, if the user's known URLs are not working
-        // we consult the registry to get additional URLs.  
+        // we consult the registry to get additional URLs.
         setTimeout(function () {
             if (gotoServerStop === false) {
                 document.getElementById('gotoServerResponse').innerHTML = '<b>Added all the known URLs for this machine.</b>';
@@ -1786,9 +1802,26 @@ function renderPage(menus, data) {
         html += mhead + shtml + '</div></div><hr role="separator"/>';
     }
 
+    const isMemoryModeDbEngine = data.memory_mode === "dbengine";
+
     sidebar += '<li class="" style="padding-top:15px;"><a href="https://github.com/netdata/netdata/blob/master/docs/Add-more-charts-to-netdata.md#add-more-charts-to-netdata" target="_blank"><i class="fas fa-plus"></i> add more charts</a></li>';
     sidebar += '<li class=""><a href="https://github.com/netdata/netdata/tree/master/health#Health-monitoring" target="_blank"><i class="fas fa-plus"></i> add more alarms</a></li>';
-    sidebar += '<li class="" style="margin:20px;color:#666;"><small>netdata on <b>' + data.hostname.toString() + '</b>, collects every ' + ((data.update_every === 1) ? 'second' : data.update_every.toString() + ' seconds') + ' <b>' + data.dimensions_count.toLocaleString() + '</b> metrics, presented as <b>' + data.charts_count.toLocaleString() + '</b> charts and monitored by <b>' + data.alarms_count.toLocaleString() + '</b> alarms, using ' + Math.round(data.rrd_memory_bytes / 1024 / 1024).toLocaleString() + ' MB of memory for ' + NETDATA.seconds4human(data.update_every * data.history, { space: '&nbsp;' }) + ' of real-time history.<br/>&nbsp;<br/><b>netdata</b><br/>' + data.version.toString() + '</small></li>';
+    sidebar += '<li class="" style="margin:20px;color:#666;"><small>Every ' +
+      ((data.update_every === 1) ? 'second' : data.update_every.toString() + ' seconds') + ', ' +
+      'Netdata collects <strong>' + data.dimensions_count.toLocaleString() + '</strong> metrics on ' +
+      data.hostname.toString() + ', presents them in <strong>' +
+      data.charts_count.toLocaleString() + '</strong> charts' +
+      (isMemoryModeDbEngine ? '' : ',') + // oxford comma
+      ' and monitors them with <strong>' +
+      data.alarms_count.toLocaleString() + '</strong> alarms.';
+
+    if (!isMemoryModeDbEngine) {
+        sidebar += '<br />&nbsp;<br />Get more history by ' +
+          '<a href="https://docs.netdata.cloud/docs/configuration-guide/#increase-the-metrics-retention-period" target=_blank>configuring Netdata\'s <strong>history</strong></a> or using the <a href="https://docs.netdata.cloud/database/engine/" target=_blank>DB engine.</a>';
+    }
+
+    sidebar += '<br/>&nbsp;<br/><strong>netdata</strong><br/>' + data.version.toString() + '</small></li>';
+
     sidebar += '</ul>';
     div.innerHTML = html;
     document.getElementById('sidebar').innerHTML = sidebar;
@@ -2077,7 +2110,7 @@ function alarmsUpdateModal() {
             var badge_url = NETDATA.alarms.server + '/api/v1/badge.svg?chart=' + alarm.chart + '&alarm=' + alarm.name + '&refresh=auto';
 
             var action_buttons = '<br/>&nbsp;<br/>role: <b>' + alarm.recipient + '</b><br/>&nbsp;<br/>'
-                + '<div class="action-button ripple" title="click to scroll the dashboard to the chart of this alarm" data-toggle="tooltip" data-placement="bottom" onClick="scrollToChartAfterHidingModal(\'' + alarm.chart + '\'); $(\'#alarmsModal\').modal(\'hide\'); return false;"><i class="fab fa-periscope"></i></div>'
+                + '<div class="action-button ripple" title="click to scroll the dashboard to the chart of this alarm" data-toggle="tooltip" data-placement="bottom" onClick="scrollToChartAfterHidingModal(\'' + alarm.chart + '\', ' + alarm.last_status_change * 1000 + ', \'' + alarm.status + '\'); $(\'#alarmsModal\').modal(\'hide\'); return false;"><i class="fab fa-periscope"></i></div>'
                 + '<div class="action-button ripple" title="click to copy to the clipboard the URL of this badge" data-toggle="tooltip" data-placement="bottom" onClick="clipboardCopy(\'' + badge_url + '\'); return false;"><i class="far fa-copy"></i></div>'
                 + '<div class="action-button ripple" title="click to copy to the clipboard an auto-refreshing <code>embed</code> html element for this badge" data-toggle="tooltip" data-placement="bottom" onClick="clipboardCopyBadgeEmbed(\'' + badge_url + '\'); return false;"><i class="fas fa-copy"></i></div>';
 
@@ -2317,6 +2350,18 @@ function alarmsUpdateModal() {
                 exportDataType: 'basic',
                 exportOptions: {
                     fileName: 'netdata_alarm_log'
+                },
+                onClickRow: function (row, $element,field) {
+                    void (field);
+                    void ($element);
+                    let main_url;
+                    let common_url = "&host=" + encodeURIComponent(row['hostname']) + "&chart=" + encodeURIComponent(row['chart']) + "&family=" + encodeURIComponent(row['family']) + "&alarm=" + encodeURIComponent(row['name']) + "&alarm_unique_id=" + row['unique_id'] + "&alarm_id=" + row['alarm_id'] + "&alarm_event_id=" +  row['alarm_event_id'] + "&alarm_when=" + row['when'];
+                    if (NETDATA.registry.isUsingGlobalRegistry() && NETDATA.registry.machine_guid != null) {
+                        main_url = "https://netdata.cloud/alarms/redirect?agentID=" + NETDATA.registry.machine_guid + common_url;
+                    } else {
+                        main_url = NETDATA.registry.server + "/goto-host-from-alarm.html?" + common_url ;
+                    }
+                    window.open(main_url,"_blank");
                 },
                 rowStyle: function (row, index) {
                     void (index);
@@ -3948,9 +3993,21 @@ function scrollDashboardTo() {
 
 var modalHiddenCallback = null;
 
-function scrollToChartAfterHidingModal(chart) {
+function scrollToChartAfterHidingModal(chart, alarmDate, alarmStatus) {
     modalHiddenCallback = function () {
-        NETDATA.alarms.scrollToChart(chart);
+        NETDATA.alarms.scrollToChart(chart, alarmDate);
+
+        if (['WARNING', 'CRITICAL'].includes(alarmStatus)) {
+            const currentChartState = NETDATA.options.targets.find(
+              (chartState) => chartState.id === chart,
+            )
+            const twoMinutes = 2 * 60 * 1000
+            NETDATA.globalPanAndZoom.setMaster(
+              currentChartState,
+              alarmDate - twoMinutes,
+              alarmDate + twoMinutes,
+            )
+        }
     };
 }
 
@@ -4897,8 +4954,9 @@ function handleSignInMessage(e) {
     cloudToken = e.data.token;
 
     netdataRegistryCallback(registryAgents);
-    if (e.data.redirectUrl) {
-        window.location.replace(e.data.redirectUrl);
+    if (e.data.redirectURI && !window.location.href.includes(e.data.redirectURI)) {
+        // lgtm false-positive - redirectURI does not come from user input, but from iframe callback
+        window.location.replace(e.data.redirectURI); // lgtm[js/client-side-unvalidated-url-redirection]
     }
 }
 
@@ -5070,7 +5128,7 @@ function netdataRegistryCallback(machinesArray) {
     registryAgents = machinesArray;
 
     if (isSignedIn()) {
-        // We call getCloudAccountAgents() here because it requires that 
+        // We call getCloudAccountAgents() here because it requires that
         // NETDATA.registry is initialized.
         clearMyNetdataMenu();
         getCloudAccountAgents().then((agents) => {
@@ -5096,8 +5154,8 @@ function netdataRegistryCallback(machinesArray) {
     }
 };
 
-// If we know the cloudBaseURL and agentID from local storage render (eagerly) 
-// the account ui before receiving the definitive response from the web server. 
+// If we know the cloudBaseURL and agentID from local storage render (eagerly)
+// the account ui before receiving the definitive response from the web server.
 // This improves the perceived performance.
 function tryFastInitCloud() {
     const baseURL = localStorage.getItem("cloud.baseURL");
@@ -5125,5 +5183,5 @@ if (document.readyState === "complete") {
         if (document.readyState === "complete") {
             initializeApp();
         }
-    })
+    });
 }

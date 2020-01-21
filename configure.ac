@@ -36,6 +36,7 @@ m4_ifdef([AM_SILENT_RULES], [
     ])
 AC_CANONICAL_HOST
 AC_PROG_CC
+AC_PROG_CC_C99
 AM_PROG_CC_C_O
 AC_PROG_CXX
 AC_PROG_INSTALL
@@ -81,6 +82,12 @@ AC_ARG_ENABLE(
     [AS_HELP_STRING([--enable-backend-prometheus-remote-write], [enable prometheus remote write backend @<:@default autodetect@:>@])],
     ,
     [enable_backend_prometheus_remote_write="detect"]
+)
+AC_ARG_ENABLE(
+    [backend-mongodb],
+    [AS_HELP_STRING([--enable-backend-mongodb], [enable mongodb backend @<:@default autodetect@:>@])],
+    ,
+    [enable_backend_mongodb="detect"]
 )
 AC_ARG_ENABLE(
     [pedantic],
@@ -273,7 +280,8 @@ AC_CHECK_LIB(
     [uv_fs_scandir_next],
     [UV_LIBS="-luv"]
 )
-
+test -z "${UV_LIBS}" && \
+    AC_MSG_ERROR([libuv required but not found. Try installing 'libuv1-dev' or 'libuv-devel'.])
 OPTIONAL_UV_CFLAGS="${UV_CFLAGS}"
 OPTIONAL_UV_LIBS="${UV_LIBS}"
 
@@ -287,9 +295,6 @@ AC_CHECK_LIB(
     [LZ4_LIBS="-llz4"]
 )
 
-OPTIONAL_LZ4_CFLAGS="${LZ4_CFLAGS}"
-OPTIONAL_LZ4_LIBS="${LZ4_LIBS}"
-
 
 # -----------------------------------------------------------------------------
 # Judy General purpose dynamic array
@@ -299,9 +304,6 @@ AC_CHECK_LIB(
     [JudyLIns],
     [JUDY_LIBS="-lJudy"]
 )
-
-OPTIONAL_JUDY_CFLAGS="${JUDY_CFLAGS}"
-OPTIONAL_JUDY_LIBS="${JUDY_LIBS}"
 
 
 # -----------------------------------------------------------------------------
@@ -350,9 +352,6 @@ AC_CHECK_LIB(
     [SSL_LIBS="-lcrypto -lssl"]
 )
 
-OPTIONAL_SSL_CFLAGS="${SSL_CFLAGS}"
-OPTIONAL_SSL_LIBS="${SSL_LIBS}"
-
 # -----------------------------------------------------------------------------
 # JSON-C library
 
@@ -369,22 +368,28 @@ OPTIONAL_JSONC_LIBS="${JSONC_LIBS}"
 
 # -----------------------------------------------------------------------------
 # DB engine and HTTPS
-test "${enable_dbengine}" = "yes" -a -z "${UV_LIBS}" && \
-    AC_MSG_ERROR([libuv required but not found. Try installing 'libuv1-dev' or 'libuv-devel'.])
-
 test "${enable_dbengine}" = "yes" -a -z "${LZ4_LIBS}" && \
     AC_MSG_ERROR([liblz4 required but not found. Try installing 'liblz4-dev' or 'lz4-devel'.])
 
 test "${enable_dbengine}" = "yes" -a -z "${JUDY_LIBS}" && \
     AC_MSG_ERROR([libJudy required but not found. Try installing 'libjudy-dev' or 'Judy-devel'.])
 
-test "${enable_dbengine}" = "yes" -o "${enable_https}" = "yes" -a -z "${SSL_LIBS}" && \
-    AC_MSG_ERROR([OpenSSL required but not found. Try installing 'libssl-dev' or 'openssl-devel'.])
+test "${enable_https}" = "yes" -a -z "${SSL_LIBS}" && \
+    AC_MSG_ERROR([OpenSSL required for HTTPS but not found. Try installing 'libssl-dev' or 'openssl-devel'.])
+
+test "${enable_dbengine}" = "yes" -a -z "${SSL_LIBS}" && \
+    AC_MSG_ERROR([OpenSSL required for DBENGINE but not found. Try installing 'libssl-dev' or 'openssl-devel'.])
 
 AC_MSG_CHECKING([if netdata dbengine should be used])
 if test "${enable_dbengine}" != "no" -a "${UV_LIBS}" -a "${LZ4_LIBS}" -a "${JUDY_LIBS}" -a "${SSL_LIBS}"; then
     enable_dbengine="yes"
     AC_DEFINE([ENABLE_DBENGINE], [1], [netdata dbengine usability])
+    OPTIONAL_LZ4_CFLAGS="${LZ4_CFLAGS}"
+    OPTIONAL_LZ4_LIBS="${LZ4_LIBS}"
+    OPTIONAL_JUDY_CFLAGS="${JUDY_CFLAGS}"
+    OPTIONAL_JUDY_LIBS="${JUDY_LIBS}"
+    OPTIONAL_SSL_CFLAGS="${SSL_CFLAGS}"
+    OPTIONAL_SSL_LIBS="${SSL_LIBS}"
 else
     enable_dbengine="no"
 fi
@@ -393,13 +398,29 @@ AM_CONDITIONAL([ENABLE_DBENGINE], [test "${enable_dbengine}" = "yes"])
 
 AC_MSG_CHECKING([if netdata https should be used])
 if test "${enable_https}" != "no" -a "${SSL_LIBS}"; then
-	enable_https="yes"
-	AC_DEFINE([ENABLE_HTTPS], [1], [netdata HTTPS usability])
+    enable_https="yes"
+    AC_DEFINE([ENABLE_HTTPS], [1], [netdata HTTPS usability])
+    OPTIONAL_SSL_CFLAGS="${SSL_CFLAGS}"
+    OPTIONAL_SSL_LIBS="${SSL_LIBS}"
 else
-	enable_https="no"
+    enable_https="no"
 fi
 AC_MSG_RESULT([${enable_https}])
 AM_CONDITIONAL([ENABLE_HTTPS], [test "${enable_https}" = "yes"])
+
+# -----------------------------------------------------------------------------
+# Exporting engine
+AC_MSG_CHECKING([if netdata exporting engine should be used])
+if test "${UV_LIBS}"; then
+    enable_exporting_engine="yes"
+    AC_DEFINE([ENABLE_EXPORTING], [1], [netdata exporting engine usability])
+    OPTIONAL_UV_CFLAGS="${UV_CFLAGS}"
+    OPTIONAL_UV_LIBS="${UV_LIBS}"
+else
+    enable_exporting_engine="no"
+fi
+AC_MSG_RESULT([${enable_exporting_engine}])
+AM_CONDITIONAL([ENABLE_EXPORTING], [test "${enable_exporting_engine}" = "yes"])
 
 # -----------------------------------------------------------------------------
 # JSON-C
@@ -666,6 +687,7 @@ if test "${enable_plugin_nfacct}" != "no" -a "${have_libnetfilter_acct}" = "yes"
     enable_plugin_nfacct="yes"
     AC_DEFINE([HAVE_LIBMNL], [1], [libmnl usability])
     AC_DEFINE([HAVE_LIBNETFILTER_ACCT], [1], [libnetfilter_acct usability])
+    AC_DEFINE([HAVE_LINUX_NETFILTER_NFNETLINK_CONNTRACK_H], [1], [libnetfilter_nfnetlink_conntrack header usability])
     OPTIONAL_NFACCT_CFLAGS="${NFACCT_CFLAGS} ${LIBMNL_CFLAGS}"
     OPTIONAL_NFACCT_LIBS="${NFACCT_LIBS} ${LIBMNL_LIBS}"
 else
@@ -741,6 +763,22 @@ fi
 AC_MSG_RESULT([${enable_plugin_xenstat}])
 AM_CONDITIONAL([ENABLE_PLUGIN_XENSTAT], [test "${enable_plugin_xenstat}" = "yes"])
 
+if test "${enable_plugin_xenstat}" == "yes"; then
+    AC_MSG_CHECKING([for xenstat_vbd_error in -lxenstat])
+    AC_TRY_LINK(
+        [ #include <xenstat.h> ],
+        [
+            xenstat_vbd * vbd;
+            int out = xenstat_vbd_error(vbd);
+        ],
+        [
+            have_xenstat_vbd_error=yes
+            AC_DEFINE([HAVE_XENSTAT_VBD_ERROR], [1], [xenstat_vbd_error usability])
+        ],
+        [ have_xenstat_vbd_error=no ]
+    )
+    AC_MSG_RESULT([${have_xenstat_vbd_error}])
+fi
 
 # -----------------------------------------------------------------------------
 # perf.plugin
@@ -764,6 +802,19 @@ else
 fi
 AC_MSG_RESULT([${enable_plugin_perf}])
 AM_CONDITIONAL([ENABLE_PLUGIN_PERF], [test "${enable_plugin_perf}" = "yes"])
+
+
+# -----------------------------------------------------------------------------
+# slabinfo.plugin
+
+AC_MSG_CHECKING([if slabinfo.plugin should be enabled])
+if test "${build_target}" == "linux"; then
+    enable_plugin_slabinfo="yes"
+else
+    enable_plugin_slabinfo="no"
+fi
+AC_MSG_RESULT([${enable_plugin_slabinfo}])
+AM_CONDITIONAL([ENABLE_PLUGIN_SLABINFO], [test "${enable_plugin_slabinfo}" = "yes"])
 
 
 # -----------------------------------------------------------------------------
@@ -949,7 +1000,7 @@ test "${enable_backend_prometheus_remote_write}" = "yes" -a "${have_CXX_compiler
     AC_MSG_ERROR([C++ compiler required but not found. try installing g++])
 
 AC_MSG_CHECKING([if prometheus remote write backend should be enabled])
-if test "${enable_backend_prometeus_remote_write}" != "no" -a "${have_libprotobuf}" = "yes" -a "${have_libsnappy}" = "yes" \
+if test "${enable_backend_prometheus_remote_write}" != "no" -a "${have_libprotobuf}" = "yes" -a "${have_libsnappy}" = "yes" \
                                                            -a "${have_protoc}" = "yes" -a "${have_CXX_compiler}" = "yes"; then
     enable_backend_prometheus_remote_write="yes"
     AC_DEFINE([ENABLE_PROMETHEUS_REMOTE_WRITE], [1], [Prometheus remote write API usability])
@@ -962,6 +1013,33 @@ fi
 
 AC_MSG_RESULT([${enable_backend_prometheus_remote_write}])
 AM_CONDITIONAL([ENABLE_BACKEND_PROMETHEUS_REMOTE_WRITE], [test "${enable_backend_prometheus_remote_write}" = "yes"])
+
+
+# -----------------------------------------------------------------------------
+# MongoDB backend - libmongoc
+
+PKG_CHECK_MODULES(
+    [LIBMONGOC],
+    [libmongoc-1.0 >= 1.7],
+    [have_libmongoc=yes],
+    [have_libmongoc=no]
+)
+
+test "${enable_backend_mongodb}" = "yes" -a "${have_libmongoc}" != "yes" && \
+    AC_MSG_ERROR([libmongoc required but not found. Try installing `mongoc`.])
+
+AC_MSG_CHECKING([if mongodb backend should be enabled])
+if test "${enable_backend_mongodb}" != "no" -a "${have_libmongoc}" = "yes"; then
+    enable_backend_mongodb="yes"
+    AC_DEFINE([HAVE_MONGOC], [1], [libmongoc usability])
+    OPTIONAL_MONGOC_CFLAGS="${LIBMONGOC_CFLAGS}"
+    OPTIONAL_MONGOC_LIBS="${LIBMONGOC_LIBS}"
+else
+    enable_backend_mongodb="no"
+fi
+
+AC_MSG_RESULT([${enable_backend_mongodb}])
+AM_CONDITIONAL([ENABLE_BACKEND_MONGODB], [test "${enable_backend_mongodb}" = "yes"])
 
 
 # -----------------------------------------------------------------------------
@@ -988,7 +1066,7 @@ if test "${enable_lto}" != "no"; then
 fi
 if test "${have_lto}" = "yes"; then
     oCFLAGS="${CFLAGS}"
-    CFLAGS="${CFLAGS} -flto ${OPTIONAL_MATH_CFLAGS} ${OPTIONAL_NFACCT_CFLAGS} ${OPTIONAL_ZLIB_CFLAGS} ${OPTIONAL_UUID_CFLAGS} ${OPTIONAL_LIBCAP_CFLAGS} ${OPTIONAL_IPMIMONITORING_CFLAGS} ${OPTIONAL_CUPS_CFLAGS} ${OPTIONAL_XENSTAT_FLAGS} ${OPTIONAL_KINESIS_CFLAGS} ${OPTIONAL_PROMETHEUS_REMOTE_WRITE_CFLAGS}"
+    CFLAGS="${CFLAGS} -flto"
     ac_cv_c_lto_cross_compile="${enable_lto}"
     test "${ac_cv_c_lto_cross_compile}" != "yes" && ac_cv_c_lto_cross_compile="no"
     AC_C_LTO
@@ -1037,6 +1115,10 @@ AC_SUBST([logdir])
 AC_SUBST([pluginsdir])
 AC_SUBST([webdir])
 
+CFLAGS="${CFLAGS} ${OPTIONAL_MATH_CFLAGS} ${OPTIONAL_NFACCT_CFLAGS} ${OPTIONAL_ZLIB_CFLAGS} ${OPTIONAL_UUID_CFLAGS} \
+    ${OPTIONAL_LIBCAP_CFLAGS} ${OPTIONAL_IPMIMONITORING_CFLAGS} ${OPTIONAL_CUPS_CFLAGS} ${OPTIONAL_XENSTAT_FLAGS} \
+    ${OPTIONAL_KINESIS_CFLAGS} ${OPTIONAL_PROMETHEUS_REMOTE_WRITE_CFLAGS} ${OPTIONAL_MONGOC_CFLAGS}"
+
 CXXFLAGS="${CFLAGS} ${CXX11FLAG}"
 
 CPPFLAGS="\
@@ -1076,7 +1158,34 @@ AC_SUBST([OPTIONAL_KINESIS_CFLAGS])
 AC_SUBST([OPTIONAL_KINESIS_LIBS])
 AC_SUBST([OPTIONAL_PROMETHEUS_REMOTE_WRITE_CFLAGS])
 AC_SUBST([OPTIONAL_PROMETHEUS_REMOTE_WRITE_LIBS])
+AC_SUBST([OPTIONAL_MONGOC_CFLAGS])
+AC_SUBST([OPTIONAL_MONGOC_LIBS])
 
+# -----------------------------------------------------------------------------
+# Check if cmocka is available - needed for unit testing
+
+AC_ARG_ENABLE(
+     [unit-tests],
+     [AS_HELP_STRING([--disable-unit-tests],
+                     [Disables building and running the unit tests suite])],
+     [],
+     [enable_unit_tests="yes"]
+)
+
+PKG_CHECK_MODULES(
+    [CMOCKA],
+    [cmocka],
+    [have_cmocka="yes"],
+    [AC_MSG_NOTICE([CMocka not found on the system. Unit tests disabled])]
+)
+AM_CONDITIONAL([ENABLE_UNITTESTS], [test "${enable_unit_tests}" = "yes" -a "${have_cmocka}" = "yes" ])
+AC_SUBST([ENABLE_UNITTESTS])
+
+TEST_CFLAGS="${CFLAGS} ${CMOCKA_CFLAGS}"
+TEST_LIBS="${CMOCKA_LIBS}"
+
+AC_SUBST([TEST_CFLAGS])
+AC_SUBST([TEST_LIBS])
 
 AC_CONFIG_FILES([
     Makefile
@@ -1088,6 +1197,7 @@ AC_CONFIG_FILES([
     backends/prometheus/Makefile
     backends/prometheus/remote_write/Makefile
     backends/aws_kinesis/Makefile
+    backends/mongodb/Makefile
     collectors/Makefile
     collectors/apps.plugin/Makefile
     collectors/cgroups.plugin/Makefile
@@ -1106,6 +1216,7 @@ AC_CONFIG_FILES([
     collectors/plugins.d/Makefile
     collectors/proc.plugin/Makefile
     collectors/python.d.plugin/Makefile
+    collectors/slabinfo.plugin/Makefile
     collectors/statsd.plugin/Makefile
     collectors/tc.plugin/Makefile
     collectors/xenstat.plugin/Makefile
@@ -1114,9 +1225,15 @@ AC_CONFIG_FILES([
     database/Makefile
     database/engine/Makefile
     diagrams/Makefile
+    exporting/Makefile
+    exporting/graphite/Makefile
+    exporting/json/Makefile
+    exporting/opentsdb/Makefile
+    exporting/tests/Makefile
     health/Makefile
     health/notifications/Makefile
     libnetdata/Makefile
+    libnetdata/tests/Makefile
     libnetdata/adaptive_resortable_list/Makefile
     libnetdata/avl/Makefile
     libnetdata/buffer/Makefile
@@ -1132,6 +1249,7 @@ AC_CONFIG_FILES([
     libnetdata/socket/Makefile
     libnetdata/statistical/Makefile
     libnetdata/storage_number/Makefile
+    libnetdata/storage_number/tests/Makefile
     libnetdata/threads/Makefile
     libnetdata/url/Makefile
     libnetdata/json/Makefile
@@ -1165,6 +1283,7 @@ AC_CONFIG_FILES([
     web/gui/Makefile
     web/server/Makefile
     web/server/static/Makefile
+    claim/Makefile
 ])
 AC_OUTPUT
 

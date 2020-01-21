@@ -31,6 +31,13 @@ echo "--- Initialize git configuration ---"
 git checkout "${1-master}"
 git pull
 
+if [ "${RELEASE_CHANNEL}" == stable ]; then
+  echo "--- Set default release channel to stable ---"
+  sed -i 's/^RELEASE_CHANNEL="nightly" *#/RELEASE_CHANNEL="stable" #/' \
+    netdata-installer.sh \
+    packaging/makeself/install-or-update.sh
+fi
+
 # Everything from this directory will be uploaded to GCS
 mkdir -p artifacts
 BASENAME="netdata-$(git describe)"
@@ -40,7 +47,7 @@ BASENAME="netdata-$(git describe)"
 python -c 'import os,sys,fcntl; flags = fcntl.fcntl(sys.stdout, fcntl.F_GETFL); fcntl.fcntl(sys.stdout, fcntl.F_SETFL, flags&~os.O_NONBLOCK);'
 echo "--- Create tarball ---"
 autoreconf -ivf
-./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --with-zlib --with-math --with-user=netdata CFLAGS=-O2 
+./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --libexecdir=/usr/libexec --with-zlib --with-math --with-user=netdata CFLAGS=-O2
 make dist
 mv "${BASENAME}.tar.gz" artifacts/
 
