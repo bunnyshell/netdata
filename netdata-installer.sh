@@ -241,7 +241,7 @@ while [ -n "${1}" ]; do
 		"--disable-telemetry") NETDATA_DISABLE_TELEMETRY=1;;
 		"--disable-go") NETDATA_DISABLE_GO=1;;
 		"--install")
-			NETDATA_PREFIX="${2}/netdata"
+			NETDATA_PREFIX="${2}"
 			shift 1
 			;;
 		"--help"|"-h")
